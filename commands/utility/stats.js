@@ -1,5 +1,17 @@
 const emojis = require('../../emojis/emojis');
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, TextDisplayBuilder, SeparatorBuilder, SeparatorSpacingSize, SectionBuilder, ThumbnailBuilder } = require('discord.js');
+const {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  SectionBuilder,
+  ThumbnailBuilder,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
+} = require('discord.js');
 
 module.exports = {
   name: 'stats',
@@ -17,6 +29,9 @@ module.exports = {
     const days = Math.floor(uptime / 86400000);
     const hours = Math.floor(uptime / 3600000) % 24;
     const minutes = Math.floor(uptime / 60000) % 60;
+    const seconds = Math.floor(uptime / 1000) % 60;
+    const memory = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1);
+    const ping = client.ws.ping;
 
     // Server stats
     const serverMembers = guild.memberCount;
@@ -27,51 +42,13 @@ module.exports = {
 
     // Build V2 Container
     const container = new ContainerBuilder()
-      .setAccentColor(0x5865F2) // Discord Blurple
+      .setAccentColor(0x9B59B6) // Violet color
       .addSectionComponents(
         new SectionBuilder()
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `# ${emojis.star} Dynamite Music\n` +
-              `**Server Statistics & Bot Info**`
-            )
-          )
-          .setThumbnailAccessory(
-            new ThumbnailBuilder().setURL(guild.iconURL({ dynamic: true, size: 256 }) || client.user.displayAvatarURL({ dynamic: true, size: 256 }))
-          )
-      )
-      .addSeparatorComponents(
-        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-      )
-      .addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `**${emojis.server} Server Stats**\n` +
-              `${emojis.arrowRight} Name: **${guild.name}**\n` +
-              `${emojis.arrowRight} Members: **${serverMembers}**\n` +
-              `${emojis.arrowRight} Channels: **${serverChannels}**\n` +
-              `${emojis.arrowRight} Roles: **${serverRoles}**\n` +
-              `${emojis.arrowRight} Boosts: **${serverBoosts}**\n` +
-              `${emojis.arrowRight} Owner: **${serverOwner.user.tag}**`
-            )
-          )
-          .setThumbnailAccessory(
-            new ThumbnailBuilder().setURL(guild.iconURL({ dynamic: true, size: 256 }) || client.user.displayAvatarURL({ dynamic: true, size: 256 }))
-          )
-      )
-      .addSeparatorComponents(
-        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-      )
-      .addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `**${emojis.user} Bot Stats**\n` +
-              `${emojis.arrowRight} Servers: **${totalServers}**\n` +
-              `${emojis.arrowRight} Users: **${totalUsers}**\n` +
-              `${emojis.arrowRight} Channels: **${totalChannels}**\n` +
-              `${emojis.arrowRight} Uptime: **${days}d ${hours}h ${minutes}m**`
+              `# ${emojis.star} ${client.user.username} Statistics\n` +
+              `**Bot & Server Information**`
             )
           )
           .setThumbnailAccessory(
@@ -81,13 +58,55 @@ module.exports = {
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
       )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${emojis.info} General Info**`)
+      )
       .addSectionComponents(
         new SectionBuilder()
           .addTextDisplayComponents(
             new TextDisplayBuilder().setContent(
-              `**${emojis.user} Requested By**\n` +
-              `${emojis.arrowRight} User: **${author.tag}**\n` +
-              `${emojis.arrowRight} ID: **${author.id}**`
+              `${emojis.arrowRight} **Bot:** ${client.user.username}\n` +
+              `${emojis.arrowRight} **Status:** Online\n` +
+              `${emojis.arrowRight} **Ping:** ${ping}ms\n` +
+              `${emojis.arrowRight} **Memory:** ${memory} MB\n` +
+              `${emojis.arrowRight} **Uptime:** ${days}d ${hours}h ${minutes}m ${seconds}s`
+            )
+          )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${emojis.server} Server Stats**`)
+      )
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `${emojis.arrowRight} **Name:** ${guild.name}\n` +
+              `${emojis.arrowRight} **Members:** ${serverMembers}\n` +
+              `${emojis.arrowRight} **Channels:** ${serverChannels}\n` +
+              `${emojis.arrowRight} **Roles:** ${serverRoles}\n` +
+              `${emojis.arrowRight} **Boosts:** ${serverBoosts}\n` +
+              `${emojis.arrowRight} **Owner:** ${serverOwner.user.tag}`
+            )
+          )
+          .setThumbnailAccessory(
+            new ThumbnailBuilder().setURL(guild.iconURL({ dynamic: true, size: 256 }) || client.user.displayAvatarURL({ dynamic: true, size: 256 }))
+          )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${emojis.user} Requested By**`)
+      )
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `${emojis.arrowRight} **User:** ${author.tag}\n` +
+              `${emojis.arrowRight} **ID:** ${author.id}`
             )
           )
           .setThumbnailAccessory(
@@ -103,13 +122,27 @@ module.exports = {
             .setCustomId('stats_refresh')
             .setLabel('Refresh')
             .setStyle(ButtonStyle.Primary)
-            .setEmoji(emojis.loading),
+            .setEmoji(emojis.refresh),
           new ButtonBuilder()
             .setCustomId('stats_close')
             .setLabel('Close')
             .setStyle(ButtonStyle.Danger)
-            .setEmoji(emojis.cross)
+            .setEmoji(emojis.close)
         )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+      )
+      .addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(
+            new TextDisplayBuilder().setContent(
+              `Powered by **${client.user.username}** | Made with ❤️`
+            )
+          )
+          .setThumbnailAccessory(
+            new ThumbnailBuilder().setURL(client.user.displayAvatarURL({ dynamic: true, size: 128 }))
+          )
       );
 
     // Send message
@@ -133,7 +166,7 @@ module.exports = {
 
       if (interaction.customId === 'stats_refresh') {
         await interaction.reply({ content: `${emojis.loading} Refreshing...`, ephemeral: true });
-        setTimeout(() => interaction.deleteReply().catch(() => {}), 2000);
+        setTimeout(() => interaction.deleteReply().catch(() => {}), 1500);
       }
     });
   },
