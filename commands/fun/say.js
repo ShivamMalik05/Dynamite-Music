@@ -1,20 +1,25 @@
-const emojis = require('../../emojis/emojis');
+const { SlashCommandBuilder } = require('discord.js');
 
 module.exports = {
   name: 'say',
   description: 'Make the bot say something',
-  async execute(message, args) {
-    const text = args.join(' ');
-    if (!text) {
-      return message.reply(`${emojis.error} Provide some text!`);
-    }
+  data: new SlashCommandBuilder()
+    .setName('say')
+    .setDescription('Make the bot say something')
+    .addStringOption(option =>
+      option.setName('text').setDescription('Text to say').setRequired(true)),
 
-    try {
-      await message.delete().catch(() => {});
-      message.channel.send(text);
-    } catch (error) {
-      console.error(error);
-      message.reply(`${emojis.error} Failed to send message.`);
+  async execute(context, args) {
+    let text;
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      text = context.options.getString('text');
+      await context.reply(text);
+    } else {
+      text = args.join(' ');
+      if (!text) return context.reply('Provide some text!');
+      await context.delete().catch(() => {});
+      context.channel.send(text);
     }
   },
 };
