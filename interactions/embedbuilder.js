@@ -73,7 +73,6 @@ function buildLivePreview(data) {
   container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.footer || `*Powered by Dynamite Music*`));
 
-  // History
   if (data.history?.length) {
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`## 📜 History`));
@@ -87,7 +86,7 @@ function buildLivePreview(data) {
   return [container];
 }
 
-// ===== BUILD FRONT PAGE (Preview + Buttons) =====
+// ===== BUILD FRONT PAGE =====
 function buildFront(data) {
   const preview = buildLivePreview(data);
   const isV2 = data.mode === 'v2';
@@ -115,7 +114,7 @@ function buildFront(data) {
   return [...preview, row1, row2, row3];
 }
 
-// ===== BUILD SUB-MENUS =====
+// ===== SUB MENUS =====
 function buildContentMenu(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0x5865F2)
@@ -241,28 +240,23 @@ async function handleButton(interaction, client) {
   }
   const data = client.embedBuilders.get(interaction.user.id);
 
-  // Close
   if (id === 'embed_close') {
     client.embedBuilders.delete(interaction.user.id);
     await interaction.update({ components: [] });
     return true;
   }
 
-  // Toggle Ephemeral
   if (id === 'eb_toggle_ephemeral') {
     data.ephemeral = !data.ephemeral;
     await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
     return true;
   }
 
-  // Toggle V1/V2
   if (id === 'eb_open_v1') { data.mode = 'v1'; await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_open_v2') { data.mode = 'v2'; await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 }); return true; }
 
-  // Back to main
   if (id === 'eb_back') { await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 }); return true; }
 
-  // Reset
   if (id === 'eb_reset') {
     const mode = data.mode;
     const ephemeral = data.ephemeral;
@@ -275,17 +269,14 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // Sub-menus
   if (id === 'eb_content') { await interaction.update({ components: buildContentMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_media') { await interaction.update({ components: buildMediaMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_fields') { await interaction.update({ components: buildFieldsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_buttons') { await interaction.update({ components: buildButtonsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
 
-  // Clear
   if (id === 'eb_clear_fields') { data.fields = []; await interaction.update({ components: buildFieldsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_clear_buttons') { data.buttons = []; await interaction.update({ components: buildButtonsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
 
-  // Send
   if (id === 'eb_preview') {
     try {
       const preview = buildLivePreview(data);
@@ -298,7 +289,6 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // Send to Channel (modal)
   if (id === 'eb_send_channel') {
     const modal = new ModalBuilder().setCustomId('modal_send').setTitle('Send to Channel');
     modal.addComponents(new ActionRowBuilder().addComponents(
@@ -308,7 +298,6 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // Modal openers
   const cfg = MODAL_CONFIGS[id];
   if (cfg) {
     const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
@@ -380,7 +369,6 @@ async function handleModal(interaction, client) {
       return interaction.reply({ content: `${emojis.success} Sent to ${channel}.`, ephemeral: true });
     }
 
-    // Update front page
     await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
   } catch (error) {
     console.error(error);
@@ -391,6 +379,8 @@ async function handleModal(interaction, client) {
 module.exports = {
   handleButton,
   handleModal,
+  buildFront,
+  buildLivePreview,
   isEmbedButton: (id) => id.startsWith('embed_') || id.startsWith('eb_'),
   isEmbedModal: (id) => id.startsWith('modal_'),
 };
