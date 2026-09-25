@@ -4,6 +4,7 @@ const {
   buildEmbedFromBlocks,
   buildBuilderPage,
   buildManageBlocksMenu,
+  buildMessageOnly,
 } = require('../../core');
 
 const MODAL_CONFIGS = {
@@ -25,6 +26,8 @@ const MODAL_CONFIGS = {
   eb_add_block_section: { id: 'modal_block_section', title: 'Add Section Block', fields: [
     { id: 'text', label: 'Section text', style: TextInputStyle.Paragraph, required: true },
     { id: 'thumbnail', label: 'Thumbnail URL (optional)', style: TextInputStyle.Short, required: false }]},
+  eb_add_block_footer: { id: 'modal_block_footer', title: 'Add Footer Block', fields: [
+    { id: 'content', label: 'Footer text', style: TextInputStyle.Short, required: true }]},
   eb_add_button: { id: 'modal_button', title: 'Add Link Button', fields: [
     { id: 'label', label: 'Button label', style: TextInputStyle.Short, required: true },
     { id: 'url', label: 'URL (https://...)', style: TextInputStyle.Short, required: true }]},
@@ -104,6 +107,10 @@ async function handleModal(interaction, client) {
       });
       addHistory(data, 'Section', 'Added');
     }
+    else if (id === 'modal_block_footer') {
+      data.blocks.push({ type: 'footer', content: interaction.fields.getTextInputValue('content') });
+      addHistory(data, 'Footer', interaction.fields.getTextInputValue('content'));
+    }
     else if (id === 'modal_button') {
       data.buttons.push({
         type: 'link',
@@ -133,7 +140,15 @@ async function handleModal(interaction, client) {
       const channelId = interaction.fields.getTextInputValue('channel_id');
       const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
       if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      await channel.send({ components: buildEmbedFromBlocks(data), flags: 1 << 15 });
+
+      if (data.mode === 'msg') {
+        const msgData = buildMessageOnly(data);
+        const payload = { content: msgData.content };
+        if (msgData.components?.length) payload.components = msgData.components;
+        await channel.send(payload);
+      } else {
+        await channel.send({ components: buildEmbedFromBlocks(data), flags: 1 << 15 });
+      }
       return interaction.reply({ content: `${emojis.success} Sent to ${channel}.`, ephemeral: true });
     }
     else if (id === 'modal_edit_existing') {
@@ -145,6 +160,7 @@ async function handleModal(interaction, client) {
       if (!msg) return interaction.reply({ content: 'Message not found.', ephemeral: true });
 
       data.editing = { channelId, messageId };
+      addHistory(data, 'Edit Mode', `Message ${messageId}`);
       await interaction.reply({
         content: `${emojis.success} Now editing message in ${channel}. Click Send to apply changes.`,
         ephemeral: true,
