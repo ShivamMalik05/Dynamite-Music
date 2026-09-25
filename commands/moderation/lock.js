@@ -1,21 +1,26 @@
-const emojis = require('../../emojis/emojis');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
   name: 'lock',
   description: 'Lock a channel',
-  async execute(message) {
-    if (!message.member.permissions.has('ManageChannels')) {
-      return message.reply(`${emojis.error} You do not have permission!`);
+  data: new SlashCommandBuilder()
+    .setName('lock')
+    .setDescription('Lock a channel')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+  async execute(context) {
+    if (!context.isChatInputCommand?.() && !context.member.permissions.has('ManageChannels')) {
+      return context.reply('You do not have permission!');
     }
 
-    try {
-      await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, {
-        SendMessages: false,
-      });
-      message.reply(`${emojis.success} Channel locked.`);
-    } catch (error) {
-      console.error(error);
-      message.reply(`${emojis.error} Failed to lock channel.`);
+    await context.channel.permissionOverwrites.edit(context.guild.roles.everyone, {
+      SendMessages: false,
+    });
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      await context.reply('Channel locked.');
+    } else {
+      context.reply('Channel locked.');
     }
   },
 };
