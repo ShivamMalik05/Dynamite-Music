@@ -8,9 +8,6 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 
@@ -28,13 +25,13 @@ module.exports = {
       return context.reply('Please use `/embedbuilder` (slash command).');
     }
 
+    // ===== FRONT PAGE =====
     const container = new ContainerBuilder()
       .setAccentColor(0xFFFFFF)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# ${emojis.star} Embed Builder\n` +
-          `**Create and send custom messages or embeds**\n` +
-          `*Choose an option below to get started.*`
+          `**Create and send custom messages or embeds**`
         )
       )
       .addSeparatorComponents(
@@ -42,51 +39,28 @@ module.exports = {
       )
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `**${emojis.arrowRight} Available Options**\n` +
-          `📝 **Message** — Send a plain text message\n` +
-          `📋 **V1 Embed** — Classic Discord embed\n` +
-          `✨ **V2 Embed** — Components V2 container\n` +
-          `✏️ **Edit by ID** — Edit an existing message/embed\n` +
-          `📤 **Send to Channel** — Send to a specific channel`
+          `Welcome to the **Embed Builder** — a powerful tool to create and send custom messages, embeds, and Components V2 containers.\n\n` +
+          `**What you can do:**\n` +
+          `${emojis.arrowRight} Send plain text messages\n` +
+          `${emojis.arrowRight} Create classic V1 embeds\n` +
+          `${emojis.arrowRight} Create modern V2 embeds\n` +
+          `${emojis.arrowRight} Edit messages by ID\n` +
+          `${emojis.arrowRight} Send to any channel by ID\n\n` +
+          `*Click **Get Started** below to begin.*`
         )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `*Powered by Dynamite Music*`
-        )
+        new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
       );
 
-    const row1 = new ActionRowBuilder().addComponents(
+    const buttons = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('embed_msg')
-        .setLabel('Message')
-        .setEmoji('📝')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('embed_v1')
-        .setLabel('V1 Embed')
-        .setEmoji('📋')
-        .setStyle(ButtonStyle.Primary),
-      new ButtonBuilder()
-        .setCustomId('embed_v2')
-        .setLabel('V2 Embed')
-        .setEmoji('✨')
-        .setStyle(ButtonStyle.Success)
-    );
-
-    const row2 = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId('embed_edit')
-        .setLabel('Edit by ID')
-        .setEmoji('✏️')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId('embed_channel')
-        .setLabel('Send to Channel')
-        .setEmoji('📤')
+        .setCustomId('embed_getstarted')
+        .setLabel('Get Started')
+        .setEmoji('🚀')
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId('embed_close')
@@ -96,7 +70,7 @@ module.exports = {
     );
 
     await context.reply({
-      components: [container, row1, row2],
+      components: [container, buttons],
       flags: 1 << 15,
     });
   },
