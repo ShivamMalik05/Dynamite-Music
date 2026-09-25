@@ -25,44 +25,38 @@ module.exports = {
       return context.reply('Please use `/embedbuilder` (slash command).');
     }
 
-    // Initialize data
     if (!context.client.embedBuilders) context.client.embedBuilders = new Map();
     context.client.embedBuilders.set(context.user.id, {
       title: null, description: null, color: null, author: null, authorIcon: null,
       thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
-      mode: 'v1', ephemeral: true,
+      mode: 'v1', ephemeral: true, history: [],
     });
 
-    const container = new ContainerBuilder()
-      .setAccentColor(0xFFFFFF)
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `# ${emojis.star} Embed Builder\n**Craft beautiful embeds — classic or modern.**`))
-      .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `**Choose your embed style below.**\n\n` +
-        `📋 **Classic Embed (V1)**\n` +
-        `${emojis.arrowRight} Title, Description, Color\n` +
-        `${emojis.arrowRight} Author, Thumbnail, Image, Footer\n` +
-        `${emojis.arrowRight} Fields, Link buttons\n\n` +
-        `✨ **Modern Embed (V2)**\n` +
-        `${emojis.arrowRight} Components V2 container\n` +
-        `${emojis.arrowRight} Sections with thumbnails\n` +
-        `${emojis.arrowRight} Everything from V1 + more`))
-      .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-        `**Ephemeral:** ✅ On (only you see it)\n` +
-        `*Click **Toggle Ephemeral** to change.*`
-      ));
+    const data = context.client.embedBuilders.get(context.user.id);
+    const preview = require('../../interactions/embedbuilder/menus').buildLivePreview(data, data.mode);
 
-    const row = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('eb_open_v1').setLabel('Classic Embed (V1)').setEmoji('📋').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('eb_open_v2').setLabel('Modern Embed (V2)').setEmoji('✨').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('eb_toggle_ephemeral').setLabel('Toggle Ephemeral').setEmoji('👁️').setStyle(ButtonStyle.Secondary),
+    const row1 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('eb_open_v1').setLabel('Classic (V1)').setEmoji('📋').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('eb_open_v2').setLabel('Modern (V2)').setEmoji('✨').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('eb_toggle_ephemeral').setLabel('Ephemeral: ON').setEmoji('👁️').setStyle(ButtonStyle.Secondary)
+    );
+
+    const row2 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('eb_content').setLabel('Content').setEmoji('📝').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('eb_media').setLabel('Media').setEmoji('🖼️').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('eb_fields').setLabel('Fields').setEmoji('📋').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('eb_buttons').setLabel('Buttons').setEmoji('🔗').setStyle(ButtonStyle.Secondary)
+    );
+
+    const row3 = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('eb_preview').setLabel('Send').setEmoji('📤').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('eb_send_channel').setLabel('Send to Channel').setEmoji('📨').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('eb_reset').setLabel('Reset').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
       new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
     );
 
     await context.reply({
-      components: [container, row],
+      components: [...preview, row1, row2, row3],
       flags: 1 << 15 | 1 << 6,
     });
   },
