@@ -13,11 +13,11 @@ const emojis = require('../../emojis/emojis');
 
 module.exports = {
   name: 'embedbuilder',
-  description: 'Build and send custom embeds',
+  description: 'Build and send custom embeds (V1 and V2)',
   category: 'Utility',
   data: new SlashCommandBuilder()
     .setName('embedbuilder')
-    .setDescription('Build and send custom embeds')
+    .setDescription('Build and send custom embeds (V1 and V2)')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
   async execute(context) {
@@ -25,13 +25,12 @@ module.exports = {
       return context.reply('Please use `/embedbuilder` (slash command).');
     }
 
-    // ===== FRONT PAGE =====
     const container = new ContainerBuilder()
       .setAccentColor(0xFFFFFF)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
           `# ${emojis.star} Embed Builder\n` +
-          `**Create and send custom messages or embeds**`
+          `**Craft beautiful embeds — classic or modern.**`
         )
       )
       .addSeparatorComponents(
@@ -39,29 +38,37 @@ module.exports = {
       )
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `Welcome to the **Embed Builder** — a powerful tool to create and send custom messages, embeds, and Components V2 containers.\n\n` +
-          `**What you can do:**\n` +
-          `${emojis.arrowRight} Send plain text messages\n` +
-          `${emojis.arrowRight} Create classic V1 embeds\n` +
-          `${emojis.arrowRight} Create modern V2 embeds\n` +
-          `${emojis.arrowRight} Edit messages by ID\n` +
-          `${emojis.arrowRight} Send to any channel by ID\n\n` +
-          `*Click **Get Started** below to begin.*`
+          `**Choose your embed style below.**\n\n` +
+          `📋 **Classic Embed (V1)**\n` +
+          `${emojis.arrowRight} Title, Description, Color, Footer\n` +
+          `${emojis.arrowRight} Fields, Author, Thumbnail, Image\n` +
+          `${emojis.arrowRight} Link buttons\n\n` +
+          `✨ **Modern Embed (V2)**\n` +
+          `${emojis.arrowRight} Components V2 container\n` +
+          `${emojis.arrowRight} Sections with thumbnails\n` +
+          `${emojis.arrowRight} Accent color, Link buttons`
         )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
+        new TextDisplayBuilder().setContent(
+          `*Only you can see this panel. Click a button to begin.*`
+        )
       );
 
-    const buttons = new ActionRowBuilder().addComponents(
+    const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId('embed_getstarted')
-        .setLabel('Get Started')
-        .setEmoji('🚀')
+        .setCustomId('eb_open_v1')
+        .setLabel('Classic Embed (V1)')
+        .setEmoji('📋')
         .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId('eb_open_v2')
+        .setLabel('Modern Embed (V2)')
+        .setEmoji('✨')
+        .setStyle(ButtonStyle.Success),
       new ButtonBuilder()
         .setCustomId('embed_close')
         .setLabel('Close')
@@ -70,8 +77,8 @@ module.exports = {
     );
 
     await context.reply({
-      components: [container, buttons],
-      flags: 1 << 15,
+      components: [container, row],
+      flags: 1 << 15 | 1 << 6, // V2 + Ephemeral
     });
   },
 };
