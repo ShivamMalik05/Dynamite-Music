@@ -4,12 +4,6 @@ const {
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
-  ContainerBuilder,
-  TextDisplayBuilder,
-  SeparatorBuilder,
-  SeparatorSpacingSize,
-  SectionBuilder,
-  ThumbnailBuilder,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 const {
@@ -20,9 +14,15 @@ const {
   buildFieldsMenu,
   buildButtonsMenu,
   buildSectionsMenu,
-  buildPreview,
+  buildLivePreview,
 } = require('./menus');
 const { MODAL_CONFIGS } = require('./modals');
+
+// Helper: saare panels — live preview + control panel
+function buildEverything(data) {
+  const livePreview = buildLivePreview(data, data.mode);
+  return livePreview;
+}
 
 async function handleButton(interaction, client) {
   const id = interaction.customId;
@@ -32,7 +32,7 @@ async function handleButton(interaction, client) {
     client.embedBuilders.set(interaction.user.id, {
       title: null, description: null, color: null, author: null, authorIcon: null,
       thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
-      mode: 'v1',
+      mode: 'v1', ephemeral: true,
     });
   }
   const data = client.embedBuilders.get(interaction.user.id);
@@ -42,49 +42,73 @@ async function handleButton(interaction, client) {
     await interaction.update({ components: [] });
     return true;
   }
+  if (id === 'eb_toggle_ephemeral') {
+    data.ephemeral = !data.ephemeral;
+    // Update current view
+    if (interaction.message.components.length === 2 && interaction.message.components[0].components[1]?.components?.some(b => b.custom_id === 'eb_open_v1')) {
+      await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
+    } else {
+      await interaction.update({ components: buildMain(data, data.mode), flags: 1 << 15 | 1 << 6 });
+    }
+    return true;
+  }
   if (id === 'eb_back') {
-    await interaction.update({ components: buildFront(), flags: 1 << 15 });
+    await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
     return true;
   }
   if (id === 'eb_open_v1') {
     data.mode = 'v1';
-    await interaction.update({ components: buildMain('v1'), flags: 1 << 15 });
+    await interaction.update({ components: buildMain(data, 'v1'), flags: 1 << 15 | 1 << 6 });
     return true;
   }
   if (id === 'eb_open_v2') {
     data.mode = 'v2';
-    await interaction.update({ components: buildMain('v2'), flags: 1 << 15 });
+    await interaction.update({ components: buildMain(data, 'v2'), flags: 1 << 15 | 1 << 6 });
     return true;
   }
   if (id === 'eb_main') {
-    await interaction.update({ components: buildMain(data.mode), flags: 1 << 15 });
+    await interaction.update({ components: buildMain(data, data.mode), flags: 1 << 15 | 1 << 6 });
     return true;
   }
   if (id === 'eb_reset') {
     const mode = data.mode;
+    const ephemeral = data.ephemeral;
     client.embedBuilders.set(interaction.user.id, {
       title: null, description: null, color: null, author: null, authorIcon: null,
       thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
-      mode,
+      mode, ephemeral,
     });
-    await interaction.update({ components: buildMain(mode), flags: 1 << 15 });
+    await interaction.update({ components: buildMain(client.embedBuilders.get(interaction.user.id), mode), flags: 1 << 15 | 1 << 6 });
     return true;
   }
 
-  if (id === 'eb_content') { await interaction.update({ components: buildContentMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_media') { await interaction.update({ components: buildMediaMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_fields') { await interaction.update({ components: buildFieldsMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_buttons') { await interaction.update({ components: buildButtonsMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_sections') { await interaction.update({ components: buildSectionsMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_clear_buttons') { data.buttons = []; await interaction.update({ components: buildButtonsMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_clear_sections') { data.sections = []; await interaction.update({ components: buildSectionsMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_clear_fields') { data.fields = []; await interaction.update({ components: buildFieldsMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_preview') { await interaction.update({ components: buildPreview(data, data.mode), flags: 1 << 15 }); return true; }
+  if (id === 'eb_content') { await interaction.update({ components: buildContentMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+  if (id === 'eb_media') { await interaction.update({ components: buildMediaMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+  if (id === 'eb_fields') { await interaction.update({ components: buildFieldsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+  if (id === 'eb_buttons') { await interaction.update({ components: buildButtonsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+  if (id === 'eb_sections') { await interaction.update({ components: buildSectionsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+  if (id === 'eb_clear_buttons') { data.buttons = []; await interaction.update({ components: buildButtonsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+  if (id === 'eb_clear_sections') { data.sections = []; await interaction.update({ components: buildSectionsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+  if (id === 'eb_clear_fields') { data.fields = []; await interaction.update({ components: buildFieldsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
+
+  // ===== PREVIEW =====
+  if (id === 'eb_preview') {
+    // Show preview + action buttons
+    const preview = buildLivePreview(data, data.mode);
+    const actionRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId('eb_send').setLabel('Send').setEmoji('📤').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId('eb_send_channel').setLabel('Send to Channel').setEmoji('📨').setStyle(ButtonStyle.Primary),
+      new ButtonBuilder().setCustomId('eb_main').setLabel('Back to Editor').setEmoji('⬅️').setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+    );
+    await interaction.update({ components: [...preview, actionRow], flags: 1 << 15 | 1 << 6 });
+    return true;
+  }
 
   if (id === 'eb_send') {
     try {
-      const rows = buildPreview(data, data.mode).slice(0, -1);
-      await interaction.channel.send({ components: rows, flags: 1 << 15 });
+      const preview = buildLivePreview(data, data.mode);
+      await interaction.channel.send({ components: preview, flags: 1 << 15 });
       await interaction.reply({ content: `${emojis.success} Embed sent!`, ephemeral: true });
     } catch (err) {
       console.error(err);
@@ -102,6 +126,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
+  // Modal openers
   const cfg = MODAL_CONFIGS[id];
   if (cfg) {
     const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
@@ -160,12 +185,16 @@ async function handleModal(interaction, client) {
       const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
       if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
 
-      const rows = buildPreview(data, data.mode).slice(0, -1);
-      await channel.send({ components: rows, flags: 1 << 15 });
+      const preview = buildLivePreview(data, data.mode);
+      await channel.send({ components: preview, flags: 1 << 15 });
       return interaction.reply({ content: `${emojis.success} Sent to ${channel}.`, ephemeral: true });
     }
 
-    await interaction.reply({ content: `${emojis.success} Updated!`, ephemeral: true });
+    // ===== HAR EDIT KE BAAD LIVE PREVIEW UPDATE KARO =====
+    await interaction.update({
+      components: buildMain(data, data.mode),
+      flags: 1 << 15 | 1 << 6,
+    });
   } catch (error) {
     console.error(error);
     await interaction.reply({ content: 'Something went wrong.', ephemeral: true });
