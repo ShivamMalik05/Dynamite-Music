@@ -1,7 +1,7 @@
 const { handleNavigation, getData } = require('./navigation');
 const { handleAction } = require('./actions');
 const { handleSelect } = require('./select');
-const { MODAL_CONFIGS } = require('../modals');
+const { MODAL_CONFIGS } = require('../modals/index');
 
 async function handleButton(interaction, client) {
   const id = interaction.customId;
