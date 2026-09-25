@@ -1,8 +1,10 @@
 const {
   handleButton,
+  handleSelect,
   handleModal,
   handleRoleButton,
   isEmbedButton,
+  isEmbedSelect,
   isEmbedModal,
   isRoleButton,
 } = require('./handlers');
@@ -14,12 +16,14 @@ const {
 
 module.exports = {
   handleButton,
+  handleSelect,
   handleModal,
   handleRoleButton,
   buildStartPage,
   buildBuilderPage,
   buildEmbedFromBlocks,
   isEmbedButton,
+  isEmbedSelect,
   isEmbedModal,
   isRoleButton,
 };
