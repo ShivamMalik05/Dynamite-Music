@@ -26,6 +26,13 @@ module.exports = {
         if (embedbuilder.isRoleButton(interaction.customId)) return await embedbuilder.handleRoleButton(interaction);
         if (setlog.isSetlogButton(interaction.customId)) return await setlog.handleButton(interaction);
         if (embedbuilder.isEmbedButton(interaction.customId)) return await embedbuilder.handleButton(interaction, client);
+
+        if (interaction.customId.startsWith('perm_')) {
+          const setperm = client.slashCommands.get('setperm');
+          if (setperm && setperm.handleButton) {
+            return await setperm.handleButton(interaction, client);
+          }
+        }
       }
 
       if (interaction.isStringSelectMenu()) {
@@ -39,6 +46,13 @@ module.exports = {
 
       if (interaction.isModalSubmit()) {
         if (embedbuilder.isEmbedModal(interaction.customId)) return await embedbuilder.handleModal(interaction, client);
+
+        if (interaction.customId.startsWith('modal_perm_')) {
+          const setperm = client.slashCommands.get('setperm');
+          if (setperm && setperm.handleModal) {
+            return await setperm.handleModal(interaction, client);
+          }
+        }
       }
     } catch (error) {
       console.error('Interaction error:', error);
