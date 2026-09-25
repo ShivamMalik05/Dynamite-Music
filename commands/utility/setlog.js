@@ -16,7 +16,7 @@ module.exports = {
 
   async execute(context) {
     if (!context.isChatInputCommand || !context.isChatInputCommand()) {
-      return context.reply('Use `/setlog` (slash command).');
+      return context.reply('Use /setlog (slash command).');
     }
 
     const config = loadConfig();
