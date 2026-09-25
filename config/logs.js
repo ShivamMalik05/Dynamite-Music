@@ -8,7 +8,6 @@ module.exports = {
     voice: '',
     server: '',
   },
-
   enabled: {
     moderation: true,
     messages: true,
@@ -18,7 +17,6 @@ module.exports = {
     voice: true,
     server: true,
   },
-
   colors: {
     moderation: 0xED4245,
     messages: 0xFEE75C,
@@ -28,7 +26,6 @@ module.exports = {
     voice: 0x1ABC9C,
     server: 0x9B59B6,
   },
-
   ignoredChannels: [],
   ignoredRoles: [],
   ignoredUsers: [],
