@@ -1,5 +1,5 @@
 const setlog = require('../interactions/setlog');
-const embedbuilder = require('../interactions/embedbuilder/actions');
+const embedbuilder = require('../interactions/embedbuilder');
 
 module.exports = {
   name: 'interactionCreate',
@@ -12,47 +12,35 @@ module.exports = {
         try {
           await command.execute(interaction);
         } catch (error) {
-          console.error('Slash error:', error);
+          console.error(error);
           if (interaction.replied || interaction.deferred) {
-            await interaction.followUp({ content: 'Something went wrong!', ephemeral: true });
+            await interaction.followUp({ content: 'Error!', ephemeral: true });
           } else {
-            await interaction.reply({ content: 'Something went wrong!', ephemeral: true });
+            await interaction.reply({ content: 'Error!', ephemeral: true });
           }
         }
         return;
       }
 
       if (interaction.isButton()) {
-        if (setlog.isSetlogButton(interaction.customId)) {
-          return await setlog.handleButton(interaction);
-        }
-        if (embedbuilder.isEmbedButton(interaction.customId)) {
-          return await embedbuilder.handleButton(interaction, client);
-        }
+        if (setlog.isSetlogButton(interaction.customId)) return await setlog.handleButton(interaction);
+        if (embedbuilder.isEmbedButton(interaction.customId)) return await embedbuilder.handleButton(interaction, client);
       }
 
       if (interaction.isChannelSelectMenu()) {
-        if (setlog.isSetlogChannel(interaction.customId)) {
-          return await setlog.handleChannelSelect(interaction);
-        }
+        if (setlog.isSetlogChannel(interaction.customId)) return await setlog.handleChannelSelect(interaction);
       }
 
       if (interaction.isModalSubmit()) {
-        if (embedbuilder.isEmbedModal(interaction.customId)) {
-          return await embedbuilder.handleModal(interaction, client);
-        }
+        if (embedbuilder.isEmbedModal(interaction.customId)) return await embedbuilder.handleModal(interaction, client);
       }
     } catch (error) {
       console.error('Interaction error:', error);
       try {
         if (!interaction.replied && !interaction.deferred) {
           await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
-        } else {
-          await interaction.followUp({ content: `Error: ${error.message}`, ephemeral: true });
         }
-      } catch (e) {
-        console.error('Failed to reply:', e);
-      }
+      } catch (e) {}
     }
   },
 };
