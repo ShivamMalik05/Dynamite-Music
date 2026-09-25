@@ -13,7 +13,7 @@ function loadConfig() {
     delete require.cache[require.resolve(configPath)];
     return require(configPath);
   } catch (err) {
-    console.error('Failed to load logs config:', err.message);
+    console.error('[logger] Failed to load config:', err.message);
     return null;
   }
 }
@@ -35,36 +35,48 @@ function makeSep() {
 }
 
 async function sendLog(client, type, data) {
+  console.log(`[sendLog] Called — type: ${type}, title: ${data.title}`);
+  
   try {
     const config = loadConfig();
     if (!config) {
-      console.error('Log config not found');
+      console.error('[sendLog] Config not loaded');
       return;
     }
+    console.log(`[sendLog] Config loaded`);
+
     if (!config.enabled[type]) {
+      console.log(`[sendLog] Type "${type}" is disabled`);
       return;
     }
 
     const channelId = config.channels[type];
+    console.log(`[sendLog] Channel ID for "${type}": ${channelId}`);
+
     if (!channelId) {
-      console.error(`No channel set for log type: ${type}`);
+      console.error(`[sendLog] No channel set for type: ${type}`);
       return;
     }
 
-    // Use fetch instead of cache (cache may not have the channel)
+    // Try cache first
     let channel = client.channels.cache.get(channelId);
+    console.log(`[sendLog] Channel from cache: ${channel ? `#${channel.name}` : 'NOT FOUND'}`);
+
+    // If not in cache, fetch it
     if (!channel) {
       channel = await client.channels.fetch(channelId).catch((err) => {
-        console.error(`Failed to fetch channel ${channelId}:`, err.message);
+        console.error(`[sendLog] Fetch failed for ${channelId}:`, err.message);
         return null;
       });
+      console.log(`[sendLog] Channel after fetch: ${channel ? `#${channel.name}` : 'STILL NULL'}`);
     }
 
     if (!channel) {
-      console.error(`Log channel not found: ${channelId}`);
+      console.error(`[sendLog] Channel not found: ${channelId}`);
       return;
     }
 
+    // Build container
     const container = new ContainerBuilder()
       .setAccentColor(data.color || config.colors[type] || 0xFFFFFF)
       .addTextDisplayComponents(
@@ -90,9 +102,12 @@ async function sendLog(client, type, data) {
       )
     );
 
-    await channel.send({ components: [container], flags: 1 << 15 });
+    console.log(`[sendLog] Sending to #${channel.name}...`);
+    const msg = await channel.send({ components: [container], flags: 1 << 15 });
+    console.log(`[sendLog] ✅ Message sent! ID: ${msg.id}`);
   } catch (error) {
-    console.error(`Failed to send log to ${type}:`, error.message);
+    console.error(`[sendLog] ❌ Error:`, error.message);
+    console.error(error.stack);
   }
 }
 
