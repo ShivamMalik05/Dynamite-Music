@@ -1,7 +1,5 @@
-const { handleButton } = require('./buttons/button');
-const { handleSelect } = require('./buttons/select');
-const { handleModal } = require('./modals/modal');
-const { handleRoleButton } = require('./modals/roleButton');
+const { handleButton, handleSelect } = require('./buttons');
+const { handleModal, handleRoleButton } = require('./modals');
 
 module.exports = {
   handleButton,
