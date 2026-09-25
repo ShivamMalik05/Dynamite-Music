@@ -1,22 +1,36 @@
-const emojis = require('../../emojis/emojis');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
   name: 'unmute',
   description: 'Unmute a user',
-  async execute(message, args) {
-    if (!message.member.permissions.has('ModerateMembers')) {
-      return message.reply(`${emojis.error} You do not have permission!`);
+  data: new SlashCommandBuilder()
+    .setName('unmute')
+    .setDescription('Unmute a user')
+    .addUserOption(option =>
+      option.setName('user').setDescription('User to unmute').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+
+  async execute(context) {
+    let member;
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      const user = context.options.getUser('user');
+      member = await context.guild.members.fetch(user.id);
+    } else {
+      if (!context.member.permissions.has('ModerateMembers')) {
+        return context.reply('You do not have permission!');
+      }
+      member = context.mentions.members.first();
+      if (!member) return context.reply('Mention a user to unmute!');
     }
 
-    const member = message.mentions.members.first();
-    if (!member) return message.reply(`${emojis.error} Mention a user to unmute!`);
+    await member.timeout(null);
+    const msg = `Unmuted **${member.user.tag}**.`;
 
-    try {
-      await member.timeout(null);
-      message.reply(`${emojis.success} Unmuted **${member.user.tag}**.`);
-    } catch (error) {
-      console.error(error);
-      message.reply(`${emojis.error} Failed to unmute this user.`);
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      await context.reply(msg);
+    } else {
+      context.reply(msg);
     }
   },
 };
