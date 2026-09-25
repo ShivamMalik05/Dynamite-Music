@@ -19,8 +19,21 @@ function loadConfig() {
 }
 
 function saveConfig(config) {
-  const content = `module.exports = ${JSON.stringify(config, null, 2)};\n`;
-  fs.writeFileSync(configPath, content);
+  try {
+    const existing = loadConfig() || {};
+    const merged = {
+      channels: { ...(existing.channels || {}), ...(config.channels || {}) },
+      enabled: { ...(existing.enabled || {}), ...(config.enabled || {}) },
+      colors: { ...(existing.colors || {}), ...(config.colors || {}) },
+      ignoredChannels: config.ignoredChannels || existing.ignoredChannels || [],
+      ignoredRoles: config.ignoredRoles || existing.ignoredRoles || [],
+      ignoredUsers: config.ignoredUsers || existing.ignoredUsers || [],
+    };
+    const content = `module.exports = ${JSON.stringify(merged, null, 2)};\n`;
+    fs.writeFileSync(configPath, content);
+  } catch (err) {
+    console.error('[logger] Failed to save config:', err.message);
+  }
 }
 
 function makeSep() {
