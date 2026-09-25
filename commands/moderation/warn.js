@@ -1,4 +1,4 @@
-const emojis = require('../../emojis/emojis');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 const fs = require('fs');
 const path = require('path');
 
@@ -18,26 +18,51 @@ function saveWarnings(data) {
 module.exports = {
   name: 'warn',
   description: 'Warn a user',
-  async execute(message, args) {
-    if (!message.member.permissions.has('ModerateMembers')) {
-      return message.reply(`${emojis.error} You do not have permission!`);
+  data: new SlashCommandBuilder()
+    .setName('warn')
+    .setDescription('Warn a user')
+    .addUserOption(option =>
+      option.setName('user').setDescription('User to warn').setRequired(true))
+    .addStringOption(option =>
+      option.setName('reason').setDescription('Reason').setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+
+  async execute(context, args) {
+    let targetUser, targetId, moderatorTag, reason;
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      targetUser = context.options.getUser('user');
+      targetId = targetUser.id;
+      moderatorTag = context.user.tag;
+      reason = context.options.getString('reason') || 'No reason provided';
+    } else {
+      if (!context.member.permissions.has('ModerateMembers')) {
+        return context.reply('You do not have permission!');
+      }
+      const member = context.mentions.members.first();
+      if (!member) return context.reply('Mention a user to warn!');
+      if (member.id === context.author.id) return context.reply('You cannot warn yourself!');
+      targetUser = member.user;
+      targetId = member.id;
+      moderatorTag = context.author.tag;
+      reason = args.slice(1).join(' ') || 'No reason provided';
     }
 
-    const member = message.mentions.members.first();
-    if (!member) return message.reply(`${emojis.error} Mention a user to warn!`);
-    if (member.id === message.author.id) return message.reply(`${emojis.error} You cannot warn yourself!`);
-
-    const reason = args.slice(1).join(' ') || 'No reason provided';
-
     const warnings = loadWarnings();
-    if (!warnings[member.id]) warnings[member.id] = [];
-    warnings[member.id].push({
+    if (!warnings[targetId]) warnings[targetId] = [];
+    warnings[targetId].push({
       reason,
-      moderator: message.author.tag,
+      moderator: moderatorTag,
       date: new Date().toISOString(),
     });
     saveWarnings(warnings);
 
-    message.reply(`${emojis.warn} Warned **${member.user.tag}**. Reason: ${reason} (Total: ${warnings[member.id].length})`);
+    const msg = `Warned **${targetUser.tag}**. Reason: ${reason} (Total: ${warnings[targetId].length})`;
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      await context.reply(msg);
+    } else {
+      context.reply(msg);
+    }
   },
 };
