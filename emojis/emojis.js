@@ -31,4 +31,9 @@ module.exports = {
   arrowLeft: '⬅️',
   check: '✔️',
   cross: '✖️',
+
+  // Stats
+  chart: '📊',
+  refresh: '🔄',
+  close: '❌',
 };
