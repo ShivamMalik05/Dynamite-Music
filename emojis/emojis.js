@@ -27,7 +27,7 @@ module.exports = {
   party: '🎉',
 
   // Arrows
-  arrowRight: '➡️',
+  arrowRight: '<:arrow:1549674333121548389>',
   arrowLeft: '⬅️',
   check: '✔️',
   cross: '✖️',
