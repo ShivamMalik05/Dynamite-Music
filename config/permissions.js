@@ -1,30 +1,40 @@
+// ============================================
+// PERMISSION CONFIG
+// Global = Bot owner/developer only
+// Server = Per-server settings
+// ============================================
+
 module.exports = {
-  // ===== GLOBAL SETTINGS =====
+  // ===== GLOBAL (Bot Owner/Developer) =====
   global: {
-    whitelistMode: false,
+    // Bot owner/developer IDs — always have full access
+    ownerIds: [
+      // '123456789012345678',
+    ],
+    // Global allowed users (work across all servers)
     allowedUserIds: [],
+    // Global allowed roles (work across all servers)
     allowedRoleIds: [],
+    // Global blocked
     blockedUserIds: [],
     blockedRoleIds: [],
+    // Global whitelist mode
+    whitelistMode: false,
   },
 
-  // ===== PER-COMMAND OVERRIDES =====
-  commands: {
-    // 'ban': {
-    //   whitelistMode: true,
-    //   allowedRoleIds: ['123456789'],
-    //   channels: {
-    //     'channel_id': { allowed: true },
-    //     'channel_id2': { blocked: true },
-    //   },
-    // },
-  },
-
-  // ===== SERVER-SPECIFIC (future multi-server support) =====
+  // ===== SERVER-SPECIFIC =====
   servers: {
     // 'guild_id': {
-    //   global: { ... },
-    //   commands: { ... },
+    //   whitelistMode: false,
+    //   allowedUserIds: [],
+    //   allowedRoleIds: [],
+    //   blockedUserIds: [],
+    //   blockedRoleIds: [],
+    //   commands: {
+    //     'ban': {
+    //       allowedRoleIds: ['123'],
+    //     },
+    //   },
     // },
   },
 };
