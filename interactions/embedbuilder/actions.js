@@ -4,6 +4,12 @@ const {
   ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  SectionBuilder,
+  ThumbnailBuilder,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 const {
@@ -26,6 +32,7 @@ async function handleButton(interaction, client) {
     client.embedBuilders.set(interaction.user.id, {
       title: null, description: null, color: null, author: null, authorIcon: null,
       thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
+      mode: 'v1',
     });
   }
   const data = client.embedBuilders.get(interaction.user.id);
@@ -35,22 +42,35 @@ async function handleButton(interaction, client) {
     await interaction.update({ components: [] });
     return true;
   }
-  if (id === 'embed_getstarted' || id === 'eb_main') {
-    await interaction.update({ components: buildMain(), flags: 1 << 15 });
-    return true;
-  }
   if (id === 'eb_back') {
     await interaction.update({ components: buildFront(), flags: 1 << 15 });
     return true;
   }
+  if (id === 'eb_open_v1') {
+    data.mode = 'v1';
+    await interaction.update({ components: buildMain('v1'), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_open_v2') {
+    data.mode = 'v2';
+    await interaction.update({ components: buildMain('v2'), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_main') {
+    await interaction.update({ components: buildMain(data.mode), flags: 1 << 15 });
+    return true;
+  }
   if (id === 'eb_reset') {
+    const mode = data.mode;
     client.embedBuilders.set(interaction.user.id, {
       title: null, description: null, color: null, author: null, authorIcon: null,
       thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
+      mode,
     });
-    await interaction.update({ components: buildMain(), flags: 1 << 15 });
+    await interaction.update({ components: buildMain(mode), flags: 1 << 15 });
     return true;
   }
+
   if (id === 'eb_content') { await interaction.update({ components: buildContentMenu(), flags: 1 << 15 }); return true; }
   if (id === 'eb_media') { await interaction.update({ components: buildMediaMenu(), flags: 1 << 15 }); return true; }
   if (id === 'eb_fields') { await interaction.update({ components: buildFieldsMenu(), flags: 1 << 15 }); return true; }
@@ -59,16 +79,26 @@ async function handleButton(interaction, client) {
   if (id === 'eb_clear_buttons') { data.buttons = []; await interaction.update({ components: buildButtonsMenu(), flags: 1 << 15 }); return true; }
   if (id === 'eb_clear_sections') { data.sections = []; await interaction.update({ components: buildSectionsMenu(), flags: 1 << 15 }); return true; }
   if (id === 'eb_clear_fields') { data.fields = []; await interaction.update({ components: buildFieldsMenu(), flags: 1 << 15 }); return true; }
-  if (id === 'eb_preview') { await interaction.update({ components: buildPreview(data), flags: 1 << 15 }); return true; }
+  if (id === 'eb_preview') { await interaction.update({ components: buildPreview(data, data.mode), flags: 1 << 15 }); return true; }
 
   if (id === 'eb_send') {
     try {
-      await interaction.channel.send({ components: buildPreview(data).slice(0, -1), flags: 1 << 15 });
+      const rows = buildPreview(data, data.mode).slice(0, -1);
+      await interaction.channel.send({ components: rows, flags: 1 << 15 });
       await interaction.reply({ content: `${emojis.success} Embed sent!`, ephemeral: true });
     } catch (err) {
       console.error(err);
       await interaction.reply({ content: 'Failed to send.', ephemeral: true });
     }
+    return true;
+  }
+
+  if (id === 'eb_send_channel') {
+    const modal = new ModalBuilder().setCustomId('modal_eb_send').setTitle('Send to Channel');
+    modal.addComponents(new ActionRowBuilder().addComponents(
+      new TextInputBuilder().setCustomId('target_channel').setLabel('Channel ID').setStyle(1).setRequired(true)
+    ));
+    await interaction.showModal(modal);
     return true;
   }
 
@@ -98,7 +128,7 @@ async function handleModal(interaction, client) {
     else if (id === 'modal_eb_desc') data.description = interaction.fields.getTextInputValue('description');
     else if (id === 'modal_eb_color') {
       const c = interaction.fields.getTextInputValue('color');
-      data.color = c.startsWith('#') ? parseInt(c.slice(1), 16) : 0x5865F2;
+      data.color = c.startsWith('#') ? parseInt(c.slice(1), 16) : (data.mode === 'v2' ? 0x9B59B6 : 0x5865F2);
     }
     else if (id === 'modal_eb_author') {
       data.author = interaction.fields.getTextInputValue('author');
@@ -130,7 +160,8 @@ async function handleModal(interaction, client) {
       const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
       if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
 
-      await channel.send({ components: buildPreview(data).slice(0, -1), flags: 1 << 15 });
+      const rows = buildPreview(data, data.mode).slice(0, -1);
+      await channel.send({ components: rows, flags: 1 << 15 });
       return interaction.reply({ content: `${emojis.success} Sent to ${channel}.`, ephemeral: true });
     }
 
