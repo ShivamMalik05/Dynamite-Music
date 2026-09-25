@@ -2,7 +2,6 @@ const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
-  SeparatorSpacingSize,
   ActionRowBuilder,
   ChannelSelectMenuBuilder,
   ChannelType,
@@ -22,6 +21,17 @@ const LOG_TYPES = [
   { id: 'server', label: 'Server', emoji: '🏠', color: 0x9B59B6, desc: 'Server updates and changes' },
 ];
 
+function makeSep() {
+  try {
+    const sep = new SeparatorBuilder();
+    if (typeof sep.setSpacing === 'function') sep.setSpacing(1);
+    if (typeof sep.setDivider === 'function') sep.setDivider(true);
+    return sep;
+  } catch {
+    return { type: 14, divider: true, spacing: 1 };
+  }
+}
+
 function buildPanel(config) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
@@ -31,7 +41,7 @@ function buildPanel(config) {
         `**Configure where each type of log goes**`
       )
     )
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `**Available Log Types**\n` +
@@ -52,7 +62,7 @@ function buildPanel(config) {
     );
   }
 
-  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+  container.addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `**How to use:**\n` +
@@ -64,7 +74,7 @@ function buildPanel(config) {
         `• Use **Reset All** to clear all channel settings`
       )
     )
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
     );
