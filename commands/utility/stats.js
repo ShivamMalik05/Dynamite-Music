@@ -1,16 +1,12 @@
 const emojis = require('../../emojis/emojis');
 const {
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
-  SectionBuilder,
-  ThumbnailBuilder,
-  MediaGalleryBuilder,
-  MediaGalleryItemBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 
 module.exports = {
@@ -38,136 +34,72 @@ module.exports = {
     const serverChannels = guild.channels.cache.size;
     const serverRoles = guild.roles.cache.size;
     const serverBoosts = guild.premiumSubscriptionCount || 0;
-    const serverOwner = await guild.fetchOwner();
 
-    // Build V2 Container
     const container = new ContainerBuilder()
-      .setAccentColor(0x9B59B6) // Violet color
-      .addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `# ${emojis.star} ${client.user.username} Statistics\n` +
-              `**Bot & Server Information**`
-            )
-          )
-          .setThumbnailAccessory(
-            new ThumbnailBuilder().setURL(client.user.displayAvatarURL({ dynamic: true, size: 256 }))
-          )
+      .setAccentColor(0x9B59B6)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# ${emojis.star} ${client.user.username} Statistics\n` +
+          `**Bot & Server Information**`
+        )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`**${emojis.info} General Info**`)
-      )
-      .addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `${emojis.arrowRight} **Bot:** ${client.user.username}\n` +
-              `${emojis.arrowRight} **Status:** Online\n` +
-              `${emojis.arrowRight} **Ping:** ${ping}ms\n` +
-              `${emojis.arrowRight} **Memory:** ${memory} MB\n` +
-              `${emojis.arrowRight} **Uptime:** ${days}d ${hours}h ${minutes}m ${seconds}s`
-            )
-          )
+        new TextDisplayBuilder().setContent(
+          `**${emojis.info} General Info**\n` +
+          `${emojis.arrowRight} **Bot:** ${client.user.username}\n` +
+          `${emojis.arrowRight} **Status:** Online\n` +
+          `${emojis.arrowRight} **Ping:** ${ping}ms\n` +
+          `${emojis.arrowRight} **Memory:** ${memory} MB\n` +
+          `${emojis.arrowRight} **Uptime:** ${days}d ${hours}h ${minutes}m ${seconds}s`
+        )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`**${emojis.server} Server Stats**`)
-      )
-      .addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `${emojis.arrowRight} **Name:** ${guild.name}\n` +
-              `${emojis.arrowRight} **Members:** ${serverMembers}\n` +
-              `${emojis.arrowRight} **Channels:** ${serverChannels}\n` +
-              `${emojis.arrowRight} **Roles:** ${serverRoles}\n` +
-              `${emojis.arrowRight} **Boosts:** ${serverBoosts}\n` +
-              `${emojis.arrowRight} **Owner:** ${serverOwner.user.tag}`
-            )
-          )
-          .setThumbnailAccessory(
-            new ThumbnailBuilder().setURL(guild.iconURL({ dynamic: true, size: 256 }) || client.user.displayAvatarURL({ dynamic: true, size: 256 }))
-          )
+        new TextDisplayBuilder().setContent(
+          `**${emojis.server} Server Stats**\n` +
+          `${emojis.arrowRight} **Name:** ${guild.name}\n` +
+          `${emojis.arrowRight} **Members:** ${serverMembers}\n` +
+          `${emojis.arrowRight} **Channels:** ${serverChannels}\n` +
+          `${emojis.arrowRight} **Roles:** ${serverRoles}\n` +
+          `${emojis.arrowRight} **Boosts:** ${serverBoosts}`
+        )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`**${emojis.user} Requested By**`)
-      )
-      .addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `${emojis.arrowRight} **User:** ${author.tag}\n` +
-              `${emojis.arrowRight} **ID:** ${author.id}`
-            )
-          )
-          .setThumbnailAccessory(
-            new ThumbnailBuilder().setURL(author.displayAvatarURL({ dynamic: true, size: 256 }))
-          )
+        new TextDisplayBuilder().setContent(
+          `**${emojis.user} Requested By**\n` +
+          `${emojis.arrowRight} **User:** ${author.tag}\n` +
+          `${emojis.arrowRight} **ID:** ${author.id}`
+        )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `Powered by **${client.user.username}** | Made with ❤️`
+        )
       )
       .addActionRowComponents(
         new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId('stats_refresh')
-            .setLabel('Refresh')
-            .setStyle(ButtonStyle.Primary)
-            .setEmoji(emojis.refresh),
           new ButtonBuilder()
             .setCustomId('stats_close')
             .setLabel('Close')
             .setStyle(ButtonStyle.Danger)
             .setEmoji(emojis.close)
         )
-      )
-      .addSeparatorComponents(
-        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-      )
-      .addSectionComponents(
-        new SectionBuilder()
-          .addTextDisplayComponents(
-            new TextDisplayBuilder().setContent(
-              `Powered by **${client.user.username}** | Made with ❤️`
-            )
-          )
-          .setThumbnailAccessory(
-            new ThumbnailBuilder().setURL(client.user.displayAvatarURL({ dynamic: true, size: 128 }))
-          )
       );
 
-    // Send message
-    const sent = await message.reply({
+    await message.reply({
       components: [container],
-      flags: 1 << 15, // IS_COMPONENTS_V2 flag
-    });
-
-    // Button collector
-    const collector = sent.createMessageComponentCollector({ time: 60000 });
-
-    collector.on('collect', async (interaction) => {
-      if (interaction.user.id !== message.author.id) {
-        return interaction.reply({ content: `${emojis.error} This is not for you!`, ephemeral: true });
-      }
-
-      if (interaction.customId === 'stats_close') {
-        await interaction.update({ components: [] });
-        collector.stop();
-      }
-
-      if (interaction.customId === 'stats_refresh') {
-        await interaction.reply({ content: `${emojis.loading} Refreshing...`, ephemeral: true });
-        setTimeout(() => interaction.deleteReply().catch(() => {}), 1500);
-      }
+      flags: 1 << 15,
     });
   },
 };
