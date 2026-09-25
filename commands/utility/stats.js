@@ -11,46 +11,80 @@ const {
   MediaGalleryItemBuilder,
 } = require('discord.js');
 
-function generateChartUrl(labels, data, colors) {
+function generateChartUrl(labels, data) {
   const chartConfig = {
-    type: 'bar',
+    type: 'line',
     data: {
       labels: labels,
       datasets: [
         {
-          label: 'Stats',
+          label: 'Server Stats',
           data: data,
-          backgroundColor: colors,
-          borderColor: colors,
-          borderWidth: 1,
+          borderColor: '#9B59B6',
+          backgroundColor: 'rgba(155, 89, 182, 0.2)',
+          borderWidth: 3,
+          pointBackgroundColor: '#9B59B6',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 6,
+          pointHoverRadius: 8,
+          tension: 0.4,
+          fill: true,
         },
       ],
     },
     options: {
+      responsive: true,
       plugins: {
-        legend: { display: false },
+        legend: {
+          display: true,
+          labels: {
+            color: '#ffffff',
+            font: { size: 14 },
+          },
+        },
         title: {
           display: true,
           text: 'Server Overview',
           color: '#ffffff',
-          font: { size: 18 },
+          font: { size: 20, weight: 'bold' },
+          padding: { top: 10, bottom: 20 },
+        },
+        tooltip: {
+          backgroundColor: '#2c2f33',
+          titleColor: '#ffffff',
+          bodyColor: '#ffffff',
+          borderColor: '#9B59B6',
+          borderWidth: 1,
         },
       },
       scales: {
         y: {
           beginAtZero: true,
-          ticks: { color: '#ffffff' },
-          grid: { color: 'rgba(255,255,255,0.1)' },
+          ticks: {
+            color: '#ffffff',
+            font: { size: 12 },
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+          },
         },
         x: {
-          ticks: { color: '#ffffff' },
-          grid: { color: 'rgba(255,255,255,0.1)' },
+          ticks: {
+            color: '#ffffff',
+            font: { size: 12 },
+          },
+          grid: {
+            color: 'rgba(255, 255, 255, 0.1)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+          },
         },
       },
     },
   };
 
-  return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=%232c2f33&width=600&height=300`;
+  return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=%232c2f33&width=600&height=300&devicePixelRatio=2`;
 }
 
 module.exports = {
@@ -77,8 +111,7 @@ module.exports = {
 
     const chartUrl = generateChartUrl(
       ['Members', 'Channels', 'Roles', 'Boosts'],
-      [serverMembers, serverChannels, serverRoles, serverBoosts],
-      ['#9B59B6', '#5865F2', '#57F287', '#FEE75C']
+      [serverMembers, serverChannels, serverRoles, serverBoosts]
     );
 
     const container = new ContainerBuilder()
