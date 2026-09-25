@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 
 const configPath = path.join(__dirname, '..', 'config', 'permissions.js');
+const ownersPath = path.join(__dirname, '..', 'config', 'owners.js');
 
 function loadConfig() {
   try {
@@ -18,10 +19,18 @@ function saveConfig(config) {
   fs.writeFileSync(configPath, content);
 }
 
+function loadOwners() {
+  try {
+    delete require.cache[require.resolve(ownersPath)];
+    return require(ownersPath);
+  } catch (err) {
+    return { owners: [] };
+  }
+}
+
 function isBotOwner(userId) {
-  const config = loadConfig();
-  if (!config) return false;
-  return (config.global?.ownerIds || []).includes(userId);
+  const owners = loadOwners();
+  return (owners.owners || []).includes(userId);
 }
 
 function getServerConfig(config, guildId) {
@@ -51,7 +60,6 @@ function canUseCommand(member, commandName, guildId, channelId = null) {
     return true;
   }
 
-  // Global + server config
   const global = config.global || {};
   const server = (config.servers || {})[guildId] || {};
 
@@ -66,7 +74,6 @@ function canUseCommand(member, commandName, guildId, channelId = null) {
   // Command-specific
   const cmdConfig = server.commands?.[commandName] || {};
 
-  // Command blocked
   if ((cmdConfig.blockedUserIds || []).includes(member.id)) return false;
   if ((cmdConfig.blockedRoleIds || []).some(id => member.roles.cache.has(id))) return false;
 
@@ -80,17 +87,13 @@ function canUseCommand(member, commandName, guildId, channelId = null) {
     }
   }
 
-  // Whitelist mode (server or global)
   const whitelistMode = server.whitelistMode || global.whitelistMode;
 
   if (whitelistMode) {
-    // Global allowed
     if ((global.allowedUserIds || []).includes(member.id)) return true;
     if ((global.allowedRoleIds || []).some(id => member.roles.cache.has(id))) return true;
-    // Server allowed
     if ((server.allowedUserIds || []).includes(member.id)) return true;
     if ((server.allowedRoleIds || []).some(id => member.roles.cache.has(id))) return true;
-    // Command allowed
     if ((cmdConfig.allowedUserIds || []).includes(member.id)) return true;
     if ((cmdConfig.allowedRoleIds || []).some(id => member.roles.cache.has(id))) return true;
     return false;
