@@ -11,48 +11,61 @@ const {
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 
+// ===== FRONT =====
 function buildFront() {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `# ${emojis.star} Embed Builder\n**Create and send custom messages or embeds**`))
+      `# ${emojis.star} Embed Builder\n**Craft beautiful embeds — classic or modern.**`))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `Welcome to the **Embed Builder** — build fully custom embeds.\n\n` +
-      `**Features:**\n` +
-      `${emojis.arrowRight} Title, Description, Color\n` +
-      `${emojis.arrowRight} Author, Thumbnail, Image, Footer\n` +
-      `${emojis.arrowRight} Fields with title + value\n` +
-      `${emojis.arrowRight} Link buttons\n` +
-      `${emojis.arrowRight} V2 Sections with thumbnails\n` +
-      `${emojis.arrowRight} Preview before sending\n\n` +
-      `*Click **Get Started** to begin.*`))
+      `**Choose your embed style below.**\n\n` +
+      `📋 **Classic Embed (V1)**\n` +
+      `${emojis.arrowRight} Title, Description, Color, Footer\n` +
+      `${emojis.arrowRight} Fields, Author, Thumbnail, Image\n` +
+      `${emojis.arrowRight} Link buttons\n\n` +
+      `✨ **Modern Embed (V2)**\n` +
+      `${emojis.arrowRight} Components V2 container\n` +
+      `${emojis.arrowRight} Sections with thumbnails\n` +
+      `${emojis.arrowRight} Accent color, Link buttons`))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Only you can see this panel.*`));
 
-  const buttons = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('embed_getstarted').setLabel('Get Started').setEmoji('🚀').setStyle(ButtonStyle.Primary),
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_open_v1').setLabel('Classic Embed (V1)').setEmoji('📋').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('eb_open_v2').setLabel('Modern Embed (V2)').setEmoji('✨').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
   );
 
-  return [container, buttons];
+  return [container, row];
 }
 
-function buildMain() {
+// ===== MAIN MENU (V1 or V2) =====
+function buildMain(mode = 'v1') {
+  const isV2 = mode === 'v2';
+  const accent = isV2 ? 0x9B59B6 : 0x5865F2;
+  const title = isV2 ? 'Modern Embed (V2)' : 'Classic Embed (V1)';
+
   const container = new ContainerBuilder()
-    .setAccentColor(0x5865F2)
+    .setAccentColor(accent)
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `# ${emojis.star} Embed Builder — Main Menu\n**Choose what to add**`))
+      `# ${emojis.star} ${title}\n**Choose what to add**`))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `📝 **Content** — Title, Description, Color\n` +
-      `🖼️ **Media** — Author, Thumbnail, Image, Footer\n` +
-      `📋 **Fields** — Title + value pairs\n` +
-      `🔗 **Buttons** — Link buttons\n` +
-      `✨ **V2 Sections** — Sections with thumbnails\n` +
-      `👁️ **Preview & Send** — Review before sending`))
+      isV2
+        ? `📝 **Content** — Title, Description, Color\n` +
+          `🖼️ **Media** — Author, Thumbnail, Image, Footer\n` +
+          `📋 **Fields** — Title + value pairs\n` +
+          `🔗 **Buttons** — Link buttons\n` +
+          `✨ **V2 Sections** — Sections with thumbnails\n` +
+          `👁️ **Preview & Send** — Review before sending`
+        : `📝 **Content** — Title, Description, Color\n` +
+          `🖼️ **Media** — Author, Thumbnail, Image, Footer\n` +
+          `📋 **Fields** — Title + value pairs\n` +
+          `🔗 **Buttons** — Link buttons\n` +
+          `👁️ **Preview & Send** — Review before sending`))
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Mode: ${isV2 ? 'V2' : 'V1'}*`));
 
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('eb_content').setLabel('Content').setEmoji('📝').setStyle(ButtonStyle.Primary),
@@ -60,8 +73,14 @@ function buildMain() {
     new ButtonBuilder().setCustomId('eb_fields').setLabel('Fields').setEmoji('📋').setStyle(ButtonStyle.Secondary)
   );
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_buttons').setLabel('Buttons').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_sections').setLabel('V2 Sections').setEmoji('✨').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('eb_buttons').setLabel('Buttons').setEmoji('🔗').setStyle(ButtonStyle.Secondary)
+  );
+  if (isV2) {
+    row2.addComponents(
+      new ButtonBuilder().setCustomId('eb_sections').setLabel('V2 Sections').setEmoji('✨').setStyle(ButtonStyle.Success)
+    );
+  }
+  row2.addComponents(
     new ButtonBuilder().setCustomId('eb_preview').setLabel('Preview & Send').setEmoji('👁️').setStyle(ButtonStyle.Success)
   );
   const row3 = new ActionRowBuilder().addComponents(
@@ -73,6 +92,7 @@ function buildMain() {
   return [container, row1, row2, row3];
 }
 
+// ===== CONTENT =====
 function buildContentMenu() {
   const container = new ContainerBuilder()
     .setAccentColor(0x5865F2)
@@ -90,6 +110,7 @@ function buildContentMenu() {
   return [container, row];
 }
 
+// ===== MEDIA =====
 function buildMediaMenu() {
   const container = new ContainerBuilder()
     .setAccentColor(0x9B59B6)
@@ -110,6 +131,7 @@ function buildMediaMenu() {
   return [container, row1, row2];
 }
 
+// ===== FIELDS =====
 function buildFieldsMenu() {
   const container = new ContainerBuilder()
     .setAccentColor(0xEB459E)
@@ -126,6 +148,7 @@ function buildFieldsMenu() {
   return [container, row];
 }
 
+// ===== BUTTONS =====
 function buildButtonsMenu() {
   const container = new ContainerBuilder()
     .setAccentColor(0x1ABC9C)
@@ -142,6 +165,7 @@ function buildButtonsMenu() {
   return [container, row];
 }
 
+// ===== SECTIONS =====
 function buildSectionsMenu() {
   const container = new ContainerBuilder()
     .setAccentColor(0xEB459E)
@@ -158,15 +182,20 @@ function buildSectionsMenu() {
   return [container, row];
 }
 
-function buildEmbedFromData(data) {
-  const container = new ContainerBuilder().setAccentColor(data.color || 0x5865F2);
+// ===== BUILD PREVIEW (V1 or V2) =====
+function buildPreview(data, mode = 'v1') {
+  const isV2 = mode === 'v2';
+  const container = new ContainerBuilder().setAccentColor(data.color || (isV2 ? 0x9B59B6 : 0x5865F2));
+
   if (data.title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${data.title}`));
   if (data.description) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.description));
+
   if (data.fields?.length) {
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     for (const f of data.fields) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${f.name}**\n${f.value}`));
   }
-  if (data.sections?.length) {
+
+  if (isV2 && data.sections?.length) {
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     for (const s of data.sections) {
       const sb = new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(s.text));
@@ -174,29 +203,30 @@ function buildEmbedFromData(data) {
       container.addSectionComponents(sb);
     }
   }
+
   if (data.author) {
     container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Author:** ${data.author}`));
   }
+
   container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
   container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.footer || `*Powered by Dynamite Music*`));
-  return container;
-}
 
-function buildPreview(data) {
-  const container = buildEmbedFromData(data);
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('eb_send').setLabel('Send').setEmoji('📤').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId('eb_send_channel').setLabel('Send to Channel').setEmoji('📨').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('eb_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
   );
+
   const rows = [container, row];
+
   if (data.buttons?.length) {
     const linkRow = new ActionRowBuilder();
     for (const b of data.buttons.slice(0, 5)) linkRow.addComponents(new ButtonBuilder().setLabel(b.label).setURL(b.url).setStyle(ButtonStyle.Link));
     rows.push(linkRow);
   }
+
   return rows;
 }
 
@@ -208,6 +238,5 @@ module.exports = {
   buildFieldsMenu,
   buildButtonsMenu,
   buildSectionsMenu,
-  buildEmbedFromData,
   buildPreview,
 };
