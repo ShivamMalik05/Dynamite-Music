@@ -13,22 +13,19 @@ function loadConfig() {
   }
 }
 
-/**
- * Check if a user can use a command
- * @param {GuildMember} member - Discord member
- * @param {string} commandName - Command name
- * @returns {boolean} - true if allowed
- */
+function saveConfig(config) {
+  const content = `module.exports = ${JSON.stringify(config, null, 2)};\n`;
+  fs.writeFileSync(configPath, content);
+}
+
 function canUseCommand(member, commandName) {
   const config = loadConfig();
   if (!config) return true;
 
-  // Server admins are always allowed
   if (member.permissions.has('ManageGuild') || member.permissions.has('Administrator')) {
     return true;
   }
 
-  // Get per-command settings or global settings
   const cmdConfig = config.commands?.[commandName] || {};
 
   const allowedUserIds = cmdConfig.allowedUserIds || config.allowedUserIds || [];
@@ -36,13 +33,9 @@ function canUseCommand(member, commandName) {
   const blockedUserIds = cmdConfig.blockedUserIds || config.blockedUserIds || [];
   const blockedRoleIds = cmdConfig.blockedRoleIds || config.blockedRoleIds || [];
 
-  // Blocked users always blocked
   if (blockedUserIds.includes(member.id)) return false;
-
-  // Blocked roles always blocked
   if (blockedRoleIds.some(id => member.roles.cache.has(id))) return false;
 
-  // Whitelist mode
   const whitelistMode = cmdConfig.whitelistMode ?? config.whitelistMode;
 
   if (whitelistMode) {
@@ -51,23 +44,17 @@ function canUseCommand(member, commandName) {
     return false;
   }
 
-  // If there are explicit allowed users/roles, check them
   if (allowedUserIds.length > 0 || allowedRoleIds.length > 0) {
     if (allowedUserIds.includes(member.id)) return true;
     if (allowedRoleIds.some(id => member.roles.cache.has(id))) return true;
     return false;
   }
 
-  // Default: allow
   return true;
 }
 
-/**
- * Check and reply if user cannot use command
- * @returns {boolean} - true if should proceed, false if blocked
- */
 async function checkPermission(context, commandName) {
-  const member = context.isChatInputCommand?.() ? context.member : context.member;
+  const member = context.member;
   if (!member) return true;
 
   const allowed = canUseCommand(member, commandName);
@@ -83,4 +70,9 @@ async function checkPermission(context, commandName) {
   return true;
 }
 
-module.exports = { canUseCommand, checkPermission, loadConfig };
+module.exports = {
+  loadConfig,
+  saveConfig,
+  canUseCommand,
+  checkPermission,
+};
