@@ -17,11 +17,15 @@ async function handleRoleButton(interaction) {
   const member = interaction.member;
   try {
     if (action === 'add') {
-      if (member.roles.cache.has(roleId)) return interaction.reply({ content: `You already have ${role}.`, ephemeral: true });
+      if (member.roles.cache.has(roleId)) {
+        return interaction.reply({ content: `You already have ${role}.`, ephemeral: true });
+      }
       await member.roles.add(role);
       await interaction.reply({ content: `${emojis.success} Added ${role}.`, ephemeral: true });
     } else if (action === 'remove') {
-      if (!member.roles.cache.has(roleId)) return interaction.reply({ content: `You don't have ${role}.`, ephemeral: true });
+      if (!member.roles.cache.has(roleId)) {
+        return interaction.reply({ content: `You don't have ${role}.`, ephemeral: true });
+      }
       await member.roles.remove(role);
       await interaction.reply({ content: `${emojis.success} Removed ${role}.`, ephemeral: true });
     } else if (action === 'toggle') {
