@@ -2,15 +2,15 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
 } = require('discord.js');
-const { buildFront } = require('../../interactions/embedbuilder/core');
+const { buildStartPage } = require('../../interactions/embedbuilder/core');
 
 module.exports = {
   name: 'embedbuilder',
-  description: 'Ultimate embed builder',
+  description: 'Ultimate embed builder — Discord par aaj tak jo nahi bana',
   category: 'Utility',
   data: new SlashCommandBuilder()
     .setName('embedbuilder')
-    .setDescription('Ultimate embed builder — blocks, roles, images, everything')
+    .setDescription('Ultimate embed builder — blocks, roles, images, export/import')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
   async execute(context) {
@@ -20,13 +20,11 @@ module.exports = {
 
     if (!context.client.embedBuilders) context.client.embedBuilders = new Map();
     context.client.embedBuilders.set(context.user.id, {
-      blocks: [], buttons: [], mode: 'v1', ephemeral: true, history: [], editing: null,
+      blocks: [], buttons: [], mode: 'v1', color: null, history: [], editing: null,
     });
 
-    const data = context.client.embedBuilders.get(context.user.id);
-
     await context.reply({
-      components: buildFront(data),
+      components: buildStartPage(),
       flags: 1 << 15 | 1 << 6,
     });
   },
