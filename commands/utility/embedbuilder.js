@@ -1,20 +1,16 @@
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
 } = require('discord.js');
-const { handleButton } = require('../../interactions/embedbuilder');
-const emojis = require('../../emojis/emojis');
+const { buildFront } = require('../../interactions/embedbuilder/core');
 
 module.exports = {
   name: 'embedbuilder',
-  description: 'Build and send custom embeds',
+  description: 'Ultimate embed builder',
   category: 'Utility',
   data: new SlashCommandBuilder()
     .setName('embedbuilder')
-    .setDescription('Build and send custom embeds')
+    .setDescription('Ultimate embed builder — blocks, roles, images, everything')
     .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
 
   async execute(context) {
@@ -24,15 +20,10 @@ module.exports = {
 
     if (!context.client.embedBuilders) context.client.embedBuilders = new Map();
     context.client.embedBuilders.set(context.user.id, {
-      title: null, description: null, color: null, author: null, authorIcon: null,
-      thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
-      mode: 'v1', ephemeral: true, history: [],
+      blocks: [], buttons: [], mode: 'v1', ephemeral: true, history: [], editing: null,
     });
 
     const data = context.client.embedBuilders.get(context.user.id);
-
-    // Build front page using the same builder
-    const { buildFront } = require('../../interactions/embedbuilder');
 
     await context.reply({
       components: buildFront(data),
