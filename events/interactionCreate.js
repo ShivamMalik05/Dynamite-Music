@@ -8,6 +8,10 @@ const {
   ChannelType,
   ButtonBuilder,
   ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  EmbedBuilder,
 } = require('discord.js');
 const { loadConfig, saveConfig } = require('../utils/logger');
 const emojis = require('../emojis/emojis');
@@ -22,14 +26,13 @@ const LOG_TYPES = [
   { id: 'server', label: 'Server', emoji: '🏠', color: 0x9B59B6 },
 ];
 
-function buildPanel(config) {
+function buildLogPanel(config) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# ${emojis.star} Log Setup Panel\n` +
-        `**Configure where each type of log goes**\n` +
-        `*Click a button below to set the channel for that log type.*`
+        `**Configure where each type of log goes**`
       )
     )
     .addSeparatorComponents(
@@ -54,15 +57,13 @@ function buildPanel(config) {
     new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
   );
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(
-      `*Powered by Dynamite Music*`
-    )
+    new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
   );
 
   return container;
 }
 
-function buildButtons() {
+function buildLogButtons() {
   const row1 = new ActionRowBuilder().addComponents(
     LOG_TYPES.slice(0, 4).map(type =>
       new ButtonBuilder()
@@ -120,11 +121,11 @@ module.exports = {
       return;
     }
 
-    // Buttons
+    // ===== SETLOG BUTTONS =====
     if (interaction.isButton()) {
       const config = loadConfig();
 
-      if (interaction.customId.startsWith('setlog_') && interaction.customId !== 'setlog_reset' && interaction.customId !== 'setlog_toggle') {
+      if (interaction.customId.startsWith('setlog_') && !['setlog_reset', 'setlog_toggle'].includes(interaction.customId)) {
         const type = interaction.customId.replace('setlog_', '');
         const validTypes = LOG_TYPES.map(t => t.id);
         if (!validTypes.includes(type)) return;
@@ -148,18 +149,13 @@ module.exports = {
 
       if (interaction.customId === 'setlog_reset') {
         config.logChannels = {
-          moderation: '',
-          messages: '',
-          members: '',
-          channels: '',
-          roles: '',
-          voice: '',
-          server: '',
+          moderation: '', messages: '', members: '', channels: '',
+          roles: '', voice: '', server: '',
         };
         saveConfig(config);
 
-        const container = buildPanel(config);
-        const buttons = buildButtons();
+        const container = buildLogPanel(config);
+        const buttons = buildLogButtons();
 
         await interaction.update({
           components: [container, ...buttons],
@@ -175,8 +171,8 @@ module.exports = {
         }
         saveConfig(config);
 
-        const container = buildPanel(config);
-        const buttons = buildButtons();
+        const container = buildLogPanel(config);
+        const buttons = buildLogButtons();
 
         await interaction.update({
           components: [container, ...buttons],
@@ -184,9 +180,187 @@ module.exports = {
         });
         return;
       }
+
+      // ===== EMBED BUILDER BUTTONS =====
+      if (interaction.customId === 'embed_close') {
+        await interaction.update({ components: [] });
+        return;
+      }
+
+      if (interaction.customId === 'embed_msg') {
+        const modal = new ModalBuilder()
+          .setCustomId('modal_msg')
+          .setTitle('Send a Message');
+
+        const channelInput = new TextInputBuilder()
+          .setCustomId('msg_channel')
+          .setLabel('Channel ID (or leave empty for current)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        const contentInput = new TextInputBuilder()
+          .setCustomId('msg_content')
+          .setLabel('Message content')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(channelInput),
+          new ActionRowBuilder().addComponents(contentInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (interaction.customId === 'embed_v1') {
+        const modal = new ModalBuilder()
+          .setCustomId('modal_v1')
+          .setTitle('Create V1 Embed');
+
+        const channelInput = new TextInputBuilder()
+          .setCustomId('v1_channel')
+          .setLabel('Channel ID (or leave empty for current)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        const titleInput = new TextInputBuilder()
+          .setCustomId('v1_title')
+          .setLabel('Title')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const descInput = new TextInputBuilder()
+          .setCustomId('v1_description')
+          .setLabel('Description')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true);
+
+        const colorInput = new TextInputBuilder()
+          .setCustomId('v1_color')
+          .setLabel('Color (hex, like #5865F2)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        const footerInput = new TextInputBuilder()
+          .setCustomId('v1_footer')
+          .setLabel('Footer text')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(channelInput),
+          new ActionRowBuilder().addComponents(titleInput),
+          new ActionRowBuilder().addComponents(descInput),
+          new ActionRowBuilder().addComponents(colorInput),
+          new ActionRowBuilder().addComponents(footerInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (interaction.customId === 'embed_v2') {
+        const modal = new ModalBuilder()
+          .setCustomId('modal_v2')
+          .setTitle('Create V2 Embed');
+
+        const channelInput = new TextInputBuilder()
+          .setCustomId('v2_channel')
+          .setLabel('Channel ID (or leave empty for current)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        const titleInput = new TextInputBuilder()
+          .setCustomId('v2_title')
+          .setLabel('Title')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const contentInput = new TextInputBuilder()
+          .setCustomId('v2_content')
+          .setLabel('Content')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true);
+
+        const colorInput = new TextInputBuilder()
+          .setCustomId('v2_color')
+          .setLabel('Accent Color (hex, like #5865F2)')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(false);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(channelInput),
+          new ActionRowBuilder().addComponents(titleInput),
+          new ActionRowBuilder().addComponents(contentInput),
+          new ActionRowBuilder().addComponents(colorInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (interaction.customId === 'embed_edit') {
+        const modal = new ModalBuilder()
+          .setCustomId('modal_edit')
+          .setTitle('Edit Message by ID');
+
+        const channelInput = new TextInputBuilder()
+          .setCustomId('edit_channel')
+          .setLabel('Channel ID')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const msgInput = new TextInputBuilder()
+          .setCustomId('edit_message')
+          .setLabel('Message ID')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const contentInput = new TextInputBuilder()
+          .setCustomId('edit_content')
+          .setLabel('New content')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(channelInput),
+          new ActionRowBuilder().addComponents(msgInput),
+          new ActionRowBuilder().addComponents(contentInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
+
+      if (interaction.customId === 'embed_channel') {
+        const modal = new ModalBuilder()
+          .setCustomId('modal_channel')
+          .setTitle('Send to Channel');
+
+        const channelInput = new TextInputBuilder()
+          .setCustomId('send_channel')
+          .setLabel('Channel ID')
+          .setStyle(TextInputStyle.Short)
+          .setRequired(true);
+
+        const contentInput = new TextInputBuilder()
+          .setCustomId('send_content')
+          .setLabel('Content')
+          .setStyle(TextInputStyle.Paragraph)
+          .setRequired(true);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(channelInput),
+          new ActionRowBuilder().addComponents(contentInput)
+        );
+
+        await interaction.showModal(modal);
+        return;
+      }
     }
 
-    // Channel select menu
+    // ===== CHANNEL SELECT MENU =====
     if (interaction.isChannelSelectMenu()) {
       if (interaction.customId.startsWith('setlog_channel_')) {
         const type = interaction.customId.replace('setlog_channel_', '');
@@ -201,6 +375,129 @@ module.exports = {
           components: [],
         });
         return;
+      }
+    }
+
+    // ===== MODALS =====
+    if (interaction.isModalSubmit()) {
+      try {
+        if (interaction.customId === 'modal_msg') {
+          const channelId = interaction.fields.getTextInputValue('msg_channel');
+          const content = interaction.fields.getTextInputValue('msg_content');
+
+          const channel = channelId
+            ? await interaction.guild.channels.fetch(channelId).catch(() => null)
+            : interaction.channel;
+
+          if (!channel) {
+            return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+          }
+
+          await channel.send(content);
+          await interaction.reply({ content: `${emojis.success} Message sent to ${channel}.`, ephemeral: true });
+          return;
+        }
+
+        if (interaction.customId === 'modal_v1') {
+          const channelId = interaction.fields.getTextInputValue('v1_channel');
+          const title = interaction.fields.getTextInputValue('v1_title');
+          const description = interaction.fields.getTextInputValue('v1_description');
+          const color = interaction.fields.getTextInputValue('v1_color') || '#5865F2';
+          const footer = interaction.fields.getTextInputValue('v1_footer');
+
+          const channel = channelId
+            ? await interaction.guild.channels.fetch(channelId).catch(() => null)
+            : interaction.channel;
+
+          if (!channel) {
+            return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+          }
+
+          const embed = new EmbedBuilder()
+            .setTitle(title)
+            .setDescription(description)
+            .setColor(color.startsWith('#') ? parseInt(color.slice(1), 16) : 0x5865F2);
+
+          if (footer) embed.setFooter({ text: footer });
+
+          await channel.send({ embeds: [embed] });
+          await interaction.reply({ content: `${emojis.success} V1 embed sent to ${channel}.`, ephemeral: true });
+          return;
+        }
+
+        if (interaction.customId === 'modal_v2') {
+          const channelId = interaction.fields.getTextInputValue('v2_channel');
+          const title = interaction.fields.getTextInputValue('v2_title');
+          const content = interaction.fields.getTextInputValue('v2_content');
+          const color = interaction.fields.getTextInputValue('v2_color') || '#5865F2';
+
+          const channel = channelId
+            ? await interaction.guild.channels.fetch(channelId).catch(() => null)
+            : interaction.channel;
+
+          if (!channel) {
+            return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+          }
+
+          const container = new ContainerBuilder()
+            .setAccentColor(color.startsWith('#') ? parseInt(color.slice(1), 16) : 0x5865F2)
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(`# ${title}`)
+            )
+            .addSeparatorComponents(
+              new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+            )
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(content)
+            )
+            .addSeparatorComponents(
+              new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+            )
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
+            );
+
+          await channel.send({ components: [container], flags: 1 << 15 });
+          await interaction.reply({ content: `${emojis.success} V2 embed sent to ${channel}.`, ephemeral: true });
+          return;
+        }
+
+        if (interaction.customId === 'modal_edit') {
+          const channelId = interaction.fields.getTextInputValue('edit_channel');
+          const messageId = interaction.fields.getTextInputValue('edit_message');
+          const content = interaction.fields.getTextInputValue('edit_content');
+
+          const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+          if (!channel) {
+            return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+          }
+
+          const message = await channel.messages.fetch(messageId).catch(() => null);
+          if (!message) {
+            return interaction.reply({ content: 'Message not found.', ephemeral: true });
+          }
+
+          await message.edit(content);
+          await interaction.reply({ content: `${emojis.success} Message edited.`, ephemeral: true });
+          return;
+        }
+
+        if (interaction.customId === 'modal_channel') {
+          const channelId = interaction.fields.getTextInputValue('send_channel');
+          const content = interaction.fields.getTextInputValue('send_content');
+
+          const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+          if (!channel) {
+            return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+          }
+
+          await channel.send(content);
+          await interaction.reply({ content: `${emojis.success} Message sent to ${channel}.`, ephemeral: true });
+          return;
+        }
+      } catch (error) {
+        console.error(error);
+        await interaction.reply({ content: 'Something went wrong.', ephemeral: true });
       }
     }
   },
