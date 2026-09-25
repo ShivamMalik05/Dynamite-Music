@@ -4,7 +4,6 @@ const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
-  SeparatorSpacingSize,
 } = require('discord.js');
 
 const configPath = path.join(__dirname, '..', 'config', 'logs.js');
@@ -24,19 +23,45 @@ function saveConfig(config) {
   fs.writeFileSync(configPath, content);
 }
 
+function makeSep() {
+  try {
+    const sep = new SeparatorBuilder();
+    if (typeof sep.setSpacing === 'function') sep.setSpacing(1);
+    if (typeof sep.setDivider === 'function') sep.setDivider(true);
+    return sep;
+  } catch {
+    return { type: 14, divider: true, spacing: 1 };
+  }
+}
+
 async function sendLog(client, type, data) {
   try {
     const config = loadConfig();
-    if (!config) return;
-
-    if (!config.enabled[type]) return;
+    if (!config) {
+      console.error('Log config not found');
+      return;
+    }
+    if (!config.enabled[type]) {
+      return;
+    }
 
     const channelId = config.channels[type];
-    if (!channelId) return;
+    if (!channelId) {
+      console.error(`No channel set for log type: ${type}`);
+      return;
+    }
 
-    const channel = client.channels.cache.get(channelId);
+    // Use fetch instead of cache (cache may not have the channel)
+    let channel = client.channels.cache.get(channelId);
     if (!channel) {
-      console.error(`Log channel not found for ${type}: ${channelId}`);
+      channel = await client.channels.fetch(channelId).catch((err) => {
+        console.error(`Failed to fetch channel ${channelId}:`, err.message);
+        return null;
+      });
+    }
+
+    if (!channel) {
+      console.error(`Log channel not found: ${channelId}`);
       return;
     }
 
@@ -48,9 +73,7 @@ async function sendLog(client, type, data) {
           `**${data.subtitle || 'Log Event'}**`
         )
       )
-      .addSeparatorComponents(
-        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-      );
+      .addSeparatorComponents(makeSep());
 
     for (const field of data.fields || []) {
       container.addTextDisplayComponents(
@@ -60,9 +83,7 @@ async function sendLog(client, type, data) {
       );
     }
 
-    container.addSeparatorComponents(
-      new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-    );
+    container.addSeparatorComponents(makeSep());
     container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `*Powered by ${client.user.username} • <t:${Math.floor(Date.now() / 1000)}:R>*`
