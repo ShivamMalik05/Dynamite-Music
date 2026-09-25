@@ -1,28 +1,41 @@
-const emojis = require('../../emojis/emojis');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
   name: 'slowmode',
   description: 'Set channel slowmode',
-  async execute(message, args) {
-    if (!message.member.permissions.has('ManageChannels')) {
-      return message.reply(`${emojis.error} You do not have permission!`);
-    }
+  data: new SlashCommandBuilder()
+    .setName('slowmode')
+    .setDescription('Set channel slowmode')
+    .addIntegerOption(option =>
+      option.setName('seconds').setDescription('Seconds (0-21600)').setRequired(true))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
 
-    const seconds = parseInt(args[0]);
-    if (isNaN(seconds) || seconds < 0 || seconds > 21600) {
-      return message.reply(`${emojis.error} Provide seconds between 0 and 21600 (6 hours).`);
-    }
+  async execute(context, args) {
+    let seconds;
 
-    try {
-      await message.channel.setRateLimitPerUser(seconds);
-      if (seconds === 0) {
-        message.reply(`${emojis.success} Slowmode disabled.`);
-      } else {
-        message.reply(`${emojis.success} Slowmode set to **${seconds}** second(s).`);
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      seconds = context.options.getInteger('seconds');
+    } else {
+      if (!context.member.permissions.has('ManageChannels')) {
+        return context.reply('You do not have permission!');
       }
-    } catch (error) {
-      console.error(error);
-      message.reply(`${emojis.error} Failed to set slowmode.`);
+      seconds = parseInt(args[0]);
+    }
+
+    if (isNaN(seconds) || seconds < 0 || seconds > 21600) {
+      const msg = 'Provide seconds between 0 and 21600.';
+      return context.isChatInputCommand?.()
+        ? context.reply({ content: msg, ephemeral: true })
+        : context.reply(msg);
+    }
+
+    await context.channel.setRateLimitPerUser(seconds);
+    const msg = seconds === 0 ? 'Slowmode disabled.' : `Slowmode set to **${seconds}** second(s).`;
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      await context.reply(msg);
+    } else {
+      context.reply(msg);
     }
   },
 };
