@@ -7,7 +7,8 @@ const {
   isRoleButton,
 } = require('./handlers');
 const {
-  buildFront,
+  buildStartPage,
+  buildBuilderPage,
   buildEmbedFromBlocks,
 } = require('./core');
 
@@ -15,7 +16,8 @@ module.exports = {
   handleButton,
   handleModal,
   handleRoleButton,
-  buildFront,
+  buildStartPage,
+  buildBuilderPage,
   buildEmbedFromBlocks,
   isEmbedButton,
   isEmbedModal,
