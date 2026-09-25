@@ -10,18 +10,22 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
+  UserSelectMenuBuilder,
+  RoleSelectMenuBuilder,
+  ChannelSelectMenuBuilder,
+  ChannelType,
 } = require('discord.js');
 
-// ===== SAFE BUILDERS =====
-function safeSeparator() {
-  try {
-    return new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
-  } catch {
-    return new SeparatorBuilder().setSpacing(1).setDivider(true);
-  }
+// ===== SAFE SEPARATOR =====
+function makeSeparator() {
+  return new SeparatorBuilder()
+    .setSpacing(SeparatorSpacingSize.Small)
+    .setDivider(true);
 }
 
-function safeThumbnail(url) {
+// ===== SAFE THUMBNAIL =====
+function makeThumbnail(url) {
   if (!url) return null;
   try {
     return new ThumbnailBuilder().setURL(url);
@@ -31,9 +35,8 @@ function safeThumbnail(url) {
 }
 
 // ===== BUILD EMBED FROM BLOCKS =====
-function buildEmbedFromBlocks(data, forSend = true) {
+function buildEmbedFromBlocks(data) {
   const container = new ContainerBuilder().setAccentColor(data.color || 0xFFFFFF);
-
   const blocks = data.blocks || [];
 
   for (const block of blocks) {
@@ -49,10 +52,10 @@ function buildEmbedFromBlocks(data, forSend = true) {
         );
       }
       else if (block.type === 'separator') {
-        container.addSeparatorComponents(safeSeparator());
+        container.addSeparatorComponents(makeSeparator());
       }
       else if (block.type === 'thumbnail' && block.url) {
-        const thumb = safeThumbnail(block.url);
+        const thumb = makeThumbnail(block.url);
         if (thumb) {
           container.addSectionComponents(
             new SectionBuilder()
@@ -73,7 +76,7 @@ function buildEmbedFromBlocks(data, forSend = true) {
         } catch {}
       }
       else if (block.type === 'author' && block.name) {
-        const thumb = safeThumbnail(block.icon);
+        const thumb = makeThumbnail(block.icon);
         const sb = new SectionBuilder().addTextDisplayComponents(
           new TextDisplayBuilder().setContent(`**${block.name}**`)
         );
@@ -86,7 +89,7 @@ function buildEmbedFromBlocks(data, forSend = true) {
         );
       }
       else if (block.type === 'section' && block.text) {
-        const thumb = safeThumbnail(block.thumbnail);
+        const thumb = makeThumbnail(block.thumbnail);
         const sb = new SectionBuilder().addTextDisplayComponents(
           new TextDisplayBuilder().setContent(block.text)
         );
@@ -100,7 +103,7 @@ function buildEmbedFromBlocks(data, forSend = true) {
 
   if (blocks.length === 0) {
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`*No content yet — add blocks below.*`)
+      new TextDisplayBuilder().setContent(`*No content yet — start building below.*`)
     );
   }
 
@@ -108,36 +111,42 @@ function buildEmbedFromBlocks(data, forSend = true) {
   const rows = [container];
 
   if (data.buttons?.length) {
-    const actionButtons = [];
+    const roleButtons = [];
     const linkButtons = [];
 
     for (const btn of data.buttons) {
       if (btn.type === 'link' && btn.url) {
         linkButtons.push(btn);
       } else if (btn.type === 'role' && btn.roleId) {
-        actionButtons.push(
+        roleButtons.push(btn);
+      }
+    }
+
+    if (roleButtons.length) {
+      const row = new ActionRowBuilder();
+      for (const b of roleButtons.slice(0, 5)) {
+        row.addComponents(
           new ButtonBuilder()
-            .setCustomId(`eb_action_role_${btn.roleId}_${btn.action}`)
-            .setLabel(btn.label || 'Role')
+            .setCustomId(`eb_action_role_${b.roleId}_${b.action}`)
+            .setLabel(b.label || 'Role')
             .setStyle(
-              btn.action === 'add' ? ButtonStyle.Success :
-              btn.action === 'remove' ? ButtonStyle.Danger :
+              b.action === 'add' ? ButtonStyle.Success :
+              b.action === 'remove' ? ButtonStyle.Danger :
               ButtonStyle.Primary
             )
         );
       }
-    }
-
-    if (actionButtons.length) {
-      const row = new ActionRowBuilder();
-      for (const b of actionButtons.slice(0, 5)) row.addComponents(b);
       rows.push(row);
     }
+
     if (linkButtons.length) {
       const row = new ActionRowBuilder();
       for (const b of linkButtons.slice(0, 5)) {
         row.addComponents(
-          new ButtonBuilder().setLabel(b.label).setURL(b.url).setStyle(ButtonStyle.Link)
+          new ButtonBuilder()
+            .setLabel(b.label)
+            .setURL(b.url)
+            .setStyle(ButtonStyle.Link)
         );
       }
       rows.push(row);
@@ -154,25 +163,32 @@ function buildStartPage() {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# 🎨 Ultimate Embed Builder\n` +
-        `**Create beautiful embeds — unlike anything else on Discord**`
+        `**Create stunning embeds — unlike anything else on Discord**`
       )
     )
-    .addSeparatorComponents(safeSeparator())
+    .addSeparatorComponents(makeSeparator())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `**Features:**\n` +
-        `📋 **V1 Builder** — Classic embed (title, desc, fields, author, footer)\n` +
-        `✨ **V2 Builder** — Components V2 (blocks, sections, separators, media)\n` +
-        `✏️ **Edit Existing** — Edit old embeds via channel ID + message ID\n` +
-        `📤 **Re-send** — Send edited embeds again\n` +
-        `🎭 **Role Buttons** — Add/Remove/Toggle role buttons\n` +
-        `🔗 **Link Buttons** — Custom link buttons\n` +
-        `📜 **History** — Track all edits\n` +
-        `💾 **Export/Import JSON** — Save and load your embeds\n\n` +
-        `*Choose an option below to begin.*`
+        `**📋 V1 Builder**\n` +
+        `Classic embeds with full features\n\n` +
+        `**✨ V2 Builder**\n` +
+        `Components V2 with blocks, sections, and nesting\n\n` +
+        `**✏️ Edit Existing**\n` +
+        `Modify old messages by channel ID + message ID`
       )
     )
-    .addSeparatorComponents(safeSeparator())
+    .addSeparatorComponents(makeSeparator())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `**Advanced Features:**\n` +
+        `🎭 Role buttons — add, remove, or toggle roles\n` +
+        `🔗 Link buttons — direct links\n` +
+        `📜 History — every edit tracked\n` +
+        `💾 Export/Import — save and reload your embeds\n` +
+        `📊 Block positioning — place content anywhere`
+      )
+    )
+    .addSeparatorComponents(makeSeparator())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
     );
@@ -197,6 +213,15 @@ function buildBuilderPage(data, mode = 'v1') {
   const isV2 = mode === 'v2';
   const rows = buildEmbedFromBlocks(data);
 
+  const header = new ContainerBuilder()
+    .setAccentColor(0xFFFFFF)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `### ${isV2 ? '✨ V2 Builder' : '📋 V1 Builder'}\n` +
+        `*Blocks: ${data.blocks?.length || 0} · Buttons: ${data.buttons?.length || 0}*`
+      )
+    );
+
   const row1 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('eb_blocks').setLabel('Blocks').setEmoji('🧱').setStyle(ButtonStyle.Primary),
     new ButtonBuilder().setCustomId('eb_buttons').setLabel('Buttons').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
@@ -204,9 +229,9 @@ function buildBuilderPage(data, mode = 'v1') {
   );
 
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_manage_blocks').setLabel('Manage').setEmoji('🔧').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_manage_blocks').setLabel('Manage Blocks').setEmoji('🔧').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('eb_history').setLabel('History').setEmoji('📜').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_export').setLabel('Export JSON').setEmoji('💾').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('eb_export').setLabel('Export').setEmoji('💾').setStyle(ButtonStyle.Secondary)
   );
 
   const row3 = new ActionRowBuilder().addComponents(
@@ -217,17 +242,17 @@ function buildBuilderPage(data, mode = 'v1') {
     new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
   );
 
-  return [...rows, row1, row2, row3];
+  return [header, ...rows, row1, row2, row3];
 }
 
-// ===== BLOCKS MENU =====
+// ===== BLOCKS MENU (with Select Menu) =====
 function buildBlocksMenu(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# 🧱 Blocks\n**Add content blocks to your embed**`)
     )
-    .addSeparatorComponents(safeSeparator())
+    .addSeparatorComponents(makeSeparator())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `**Current blocks:** ${data.blocks?.length || 0}\n` +
@@ -236,50 +261,43 @@ function buildBlocksMenu(data) {
               const preview = b.content || b.text || b.name || b.url || '';
               return `**${i + 1}.** ${b.type}${preview ? ' — ' + preview.slice(0, 30) : ''}`;
             }).join('\n')
-          : '*No blocks yet*')
-      )
-    )
-    .addSeparatorComponents(safeSeparator())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `**Available blocks:**\n` +
-        `📌 Title  ·  📄 Text  ·  ➖ Separator\n` +
-        `🔳 Thumbnail  ·  🖼️ Image  ·  👤 Author\n` +
-        `📋 Field  ·  ✨ Section`
+          : '*No blocks yet — use the dropdown below*')
       )
     );
 
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_add_block_title').setLabel('Title').setEmoji('📌').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_add_block_text').setLabel('Text').setEmoji('📄').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_add_block_separator').setLabel('Separator').setEmoji('➖').setStyle(ButtonStyle.Secondary)
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_add_block_thumbnail').setLabel('Thumbnail').setEmoji('🔳').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_add_block_image').setLabel('Image').setEmoji('🖼️').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_add_block_author').setLabel('Author').setEmoji('👤').setStyle(ButtonStyle.Secondary)
-  );
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_add_block_field').setLabel('Field').setEmoji('📋').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_add_block_section').setLabel('Section').setEmoji('✨').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_clear_blocks').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger)
-  );
-  const row4 = new ActionRowBuilder().addComponents(
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('eb_block_select')
+    .setPlaceholder('Choose a block type to add')
+    .addOptions([
+      { label: 'Title', value: 'title', emoji: '📌', description: 'Large heading text' },
+      { label: 'Text', value: 'text', emoji: '📄', description: 'Paragraph content' },
+      { label: 'Separator', value: 'separator', emoji: '➖', description: 'Divider line' },
+      { label: 'Thumbnail', value: 'thumbnail', emoji: '🔳', description: 'Small image on the right' },
+      { label: 'Image', value: 'image', emoji: '🖼️', description: 'Large image' },
+      { label: 'Author', value: 'author', emoji: '👤', description: 'Author name with icon' },
+      { label: 'Field', value: 'field', emoji: '📋', description: 'Name + value pair' },
+      { label: 'Section', value: 'section', emoji: '✨', description: 'Text with optional thumbnail' },
+    ]);
+
+  const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+  const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('eb_manage_blocks').setLabel('Manage Blocks').setEmoji('🔧').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('eb_clear_blocks').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
   );
 
-  return [container, row1, row2, row3, row4];
+  return [container, selectRow, row];
 }
 
-// ===== MANAGE BLOCKS =====
+// ===== MANAGE BLOCKS (with Position Select) =====
 function buildManageBlocksMenu(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# 🔧 Manage Blocks\n**Reorder or delete blocks**`)
     )
-    .addSeparatorComponents(safeSeparator());
+    .addSeparatorComponents(makeSeparator());
 
   if (data.blocks?.length) {
     for (let i = 0; i < data.blocks.length; i++) {
@@ -287,7 +305,7 @@ function buildManageBlocksMenu(data) {
       const preview = b.content || b.text || b.name || b.url || '';
       container.addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `**${i + 1}.** ${b.type}${preview ? ' — ' + preview.slice(0, 30) : ''}`
+          `**Position ${i + 1}** — ${b.type}${preview ? ' — ' + preview.slice(0, 30) : ''}`
         )
       );
     }
@@ -297,24 +315,32 @@ function buildManageBlocksMenu(data) {
     );
   }
 
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('eb_manage_select')
+    .setPlaceholder('Choose an action')
+    .addOptions([
+      { label: 'Move Block', value: 'move', emoji: '🔀', description: 'Move a block to a new position' },
+      { label: 'Delete Block', value: 'delete', emoji: '🗑️', description: 'Remove a block' },
+      { label: 'Swap Blocks', value: 'swap', emoji: '🔄', description: 'Swap two blocks' },
+    ]);
+
+  const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_move_up').setLabel('Move Up').setEmoji('⬆️').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_move_down').setLabel('Move Down').setEmoji('⬇️').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_delete_block').setLabel('Delete').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_back_blocks').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('eb_back_blocks').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
   );
 
-  return [container, row];
+  return [container, selectRow, row];
 }
 
-// ===== BUTTONS MENU =====
+// ===== BUTTONS MENU (with Select) =====
 function buildButtonsMenu(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# 🔗 Buttons\n**Add link and role buttons**`)
     )
-    .addSeparatorComponents(safeSeparator())
+    .addSeparatorComponents(makeSeparator())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `**Current buttons:** ${data.buttons?.length || 0}\n` +
@@ -323,24 +349,28 @@ function buildButtonsMenu(data) {
               const type = b.type === 'link' ? '🔗 Link' : b.type === 'role' ? `🎭 Role (${b.action})` : '❓';
               return `**${i + 1}.** ${b.label} — ${type}`;
             }).join('\n')
-          : '*No buttons yet*')
+          : '*No buttons yet — use the dropdown below*')
       )
     );
 
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_add_button').setLabel('Link Button').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_add_role').setLabel('Add Role').setEmoji('➕').setStyle(ButtonStyle.Success)
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_remove_role').setLabel('Remove Role').setEmoji('➖').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_toggle_role').setLabel('Toggle Role').setEmoji('🔄').setStyle(ButtonStyle.Primary)
-  );
-  const row3 = new ActionRowBuilder().addComponents(
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('eb_button_select')
+    .setPlaceholder('Choose a button type to add')
+    .addOptions([
+      { label: 'Link Button', value: 'link', emoji: '🔗', description: 'Direct URL button' },
+      { label: 'Add Role', value: 'role_add', emoji: '➕', description: 'Add a role when clicked' },
+      { label: 'Remove Role', value: 'role_remove', emoji: '➖', description: 'Remove a role when clicked' },
+      { label: 'Toggle Role', value: 'role_toggle', emoji: '🔄', description: 'Add or remove a role' },
+    ]);
+
+  const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+  const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('eb_clear_buttons').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
   );
 
-  return [container, row1, row2, row3];
+  return [container, selectRow, row];
 }
 
 // ===== STYLE MENU =====
@@ -350,30 +380,36 @@ function buildStyleMenu(data) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# 🎨 Style\n**Customize embed color**`)
     )
-    .addSeparatorComponents(safeSeparator())
+    .addSeparatorComponents(makeSeparator())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `**Current color:** ${data.color ? '#' + data.color.toString(16).padStart(6, '0').toUpperCase() : '#FFFFFF (default)'}`
       )
     );
 
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_color_white').setLabel('White').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_color_blue').setLabel('Blurple').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_color_red').setLabel('Red').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_color_green').setLabel('Green').setStyle(ButtonStyle.Success)
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_color_purple').setLabel('Purple').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_color_pink').setLabel('Pink').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_color_yellow').setLabel('Yellow').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_color_custom').setLabel('Custom').setEmoji('🎨').setStyle(ButtonStyle.Secondary)
-  );
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId('eb_color_select')
+    .setPlaceholder('Choose a color')
+    .addOptions([
+      { label: 'White', value: 'FFFFFF', emoji: '⚪' },
+      { label: 'Blurple', value: '5865F2', emoji: '🔵' },
+      { label: 'Red', value: 'ED4245', emoji: '🔴' },
+      { label: 'Green', value: '57F287', emoji: '🟢' },
+      { label: 'Purple', value: '9B59B6', emoji: '🟣' },
+      { label: 'Pink', value: 'EB459E', emoji: '🌸' },
+      { label: 'Yellow', value: 'FEE75C', emoji: '🟡' },
+      { label: 'Orange', value: 'E67E22', emoji: '🟠' },
+      { label: 'Cyan', value: '1ABC9C', emoji: '💠' },
+    ]);
+
+  const selectRow = new ActionRowBuilder().addComponents(selectMenu);
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_color_custom').setLabel('Custom Color').setEmoji('🎨').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
   );
 
-  return [container, row1, row2, row3];
+  return [container, selectRow, row];
 }
 
 // ===== HISTORY PANEL =====
@@ -383,7 +419,7 @@ function buildHistoryPanel(data) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# 📜 History\n**Your recent edits**`)
     )
-    .addSeparatorComponents(safeSeparator());
+    .addSeparatorComponents(makeSeparator());
 
   if (data.history?.length) {
     for (const h of data.history.slice(-15).reverse()) {
@@ -398,8 +434,8 @@ function buildHistoryPanel(data) {
   }
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_clear_history').setLabel('Clear').setEmoji('🗑️').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId('eb_clear_history').setLabel('Clear History').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('eb_back_builder').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
   );
 
   return [container, row];
@@ -410,29 +446,34 @@ function buildHelpPage() {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# ❓ Help\n**How to use the Embed Builder**`)
+      new TextDisplayBuilder().setContent(`# ❓ Help\n**How to use the Ultimate Embed Builder**`)
     )
-    .addSeparatorComponents(safeSeparator())
+    .addSeparatorComponents(makeSeparator())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `**1. Choose Mode**\n` +
-        `V1 = Classic embed · V2 = Components V2\n\n` +
-        `**2. Add Blocks**\n` +
-        `Each block is a piece of content (title, text, image, etc.)\n\n` +
-        `**3. Reorder Blocks**\n` +
-        `Use Manage Blocks to change position\n\n` +
+        `**1. Choose Builder Mode**\n` +
+        `V1 = Classic embed layout\n` +
+        `V2 = Components V2 with nested sections\n\n` +
+        `**2. Add Content Blocks**\n` +
+        `Use the dropdown menu to add blocks like Title, Text, Image, etc.\n\n` +
+        `**3. Manage Blocks**\n` +
+        `Move any block to a specific position using the Manage Blocks menu.\n\n` +
         `**4. Add Buttons**\n` +
-        `Link buttons, role buttons (add/remove/toggle)\n\n` +
-        `**5. Send or Edit**\n` +
-        `Send to current channel, specific channel, or edit existing message\n\n` +
-        `**Pro Tip:**\n` +
-        `Use Export JSON to save your embed and Import JSON to load it later.`
+        `Link buttons (URLs) or role buttons (add/remove/toggle roles).\n\n` +
+        `**5. Style**\n` +
+        `Pick a color from the dropdown or set a custom hex color.\n\n` +
+        `**6. Send or Edit**\n` +
+        `Send to current channel, send to a specific channel, or edit an existing message.\n\n` +
+        `**Pro Features:**\n` +
+        `• Export JSON to save your design\n` +
+        `• Import JSON to reload it later\n` +
+        `• History tracks every change you make`
       )
     )
-    .addSeparatorComponents(safeSeparator());
+    .addSeparatorComponents(makeSeparator());
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_home').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('eb_home').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
   );
 
   return [container, row];
@@ -448,6 +489,6 @@ module.exports = {
   buildStyleMenu,
   buildHistoryPanel,
   buildHelpPage,
-  safeSeparator,
-  safeThumbnail,
+  makeSeparator,
+  makeThumbnail,
 };
