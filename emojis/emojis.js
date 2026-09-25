@@ -7,7 +7,7 @@ module.exports = {
   loading: '⏳',
 
   // Moderation
-  ban: '🔨',
+  ban: '<:Admin:1551907926875054080>',
   kick: '👢',
   mute: '🔇',
   warn: '⚠️',
