@@ -29,6 +29,7 @@ module.exports = {
       }
 
       if (interaction.isStringSelectMenu()) {
+        if (setlog.isSetlogSelect(interaction.customId)) return await setlog.handleSelect(interaction);
         if (embedbuilder.isEmbedSelect(interaction.customId)) return await embedbuilder.handleSelect(interaction, client);
       }
 
