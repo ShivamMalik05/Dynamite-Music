@@ -13,61 +13,83 @@ const {
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 
-// ===== CLEAN EMBED =====
-function buildCleanEmbed(data) {
+// ===== BLOCK BUILDERS =====
+
+function blockTitle(text) {
+  return new TextDisplayBuilder().setContent(`# ${text}`);
+}
+
+function blockText(text) {
+  return new TextDisplayBuilder().setContent(text);
+}
+
+function blockSeparator() {
+  return new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
+}
+
+function blockThumbnail(label, url) {
+  return new SectionBuilder()
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(label ? `**${label}**` : ''))
+    .setThumbnailAccessory(new ThumbnailBuilder().setURL(url));
+}
+
+function blockImage(url) {
+  return new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(url));
+}
+
+function blockAuthor(name, iconUrl) {
+  const sb = new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${name}**`));
+  if (iconUrl) sb.setThumbnailAccessory(new ThumbnailBuilder().setURL(iconUrl));
+  return sb;
+}
+
+// ===== BUILD EMBED FROM BLOCKS =====
+function buildEmbedFromBlocks(data, isPreview = false) {
   const isV2 = data.mode === 'v2';
   const container = new ContainerBuilder().setAccentColor(data.color || (isV2 ? 0x9B59B6 : 0x5865F2));
 
-  if (data.title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${data.title}`));
-  if (data.description) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.description));
+  // Blocks ko order mein lagao
+  const blocks = data.blocks || [];
 
-  if (data.thumbnail) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**🔳 Thumbnail**`))
-        .setThumbnailAccessory(new ThumbnailBuilder().setURL(data.thumbnail))
-    );
-  }
-
-  if (data.fields?.length) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    for (const f of data.fields) {
-      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${f.name}**\n${f.value}`));
+  for (const block of blocks) {
+    try {
+      if (block.type === 'title' && block.content) {
+        container.addTextDisplayComponents(blockTitle(block.content));
+      }
+      else if (block.type === 'text' && block.content) {
+        container.addTextDisplayComponents(blockText(block.content));
+      }
+      else if (block.type === 'separator') {
+        container.addSeparatorComponents(blockSeparator());
+      }
+      else if (block.type === 'thumbnail' && block.url) {
+        container.addSectionComponents(blockThumbnail(block.label, block.url));
+      }
+      else if (block.type === 'image' && block.url) {
+        container.addMediaGalleryComponents(blockImage(block.url));
+      }
+      else if (block.type === 'author' && block.name) {
+        container.addSectionComponents(blockAuthor(block.name, block.icon));
+      }
+      else if (block.type === 'field' && block.name) {
+        container.addTextDisplayComponents(blockText(`**${block.name}**\n${block.value || ''}`));
+      }
+      else if (block.type === 'section' && block.text) {
+        const sb = new SectionBuilder().addTextDisplayComponents(blockText(block.text));
+        if (block.thumbnail) sb.setThumbnailAccessory(new ThumbnailBuilder().setURL(block.thumbnail));
+        container.addSectionComponents(sb);
+      }
+    } catch (err) {
+      console.error('Block error:', err);
     }
   }
 
-  if (isV2 && data.sections?.length) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    for (const s of data.sections) {
-      const sb = new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(s.text));
-      if (s.thumbnail) sb.setThumbnailAccessory(new ThumbnailBuilder().setURL(s.thumbnail));
-      container.addSectionComponents(sb);
-    }
+  // Empty state
+  if (blocks.length === 0) {
+    container.addTextDisplayComponents(blockText(`*No content yet — add blocks below.*`));
   }
 
-  if (data.image) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(data.image))
-    );
-  }
-
-  if (data.author) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Author:** ${data.author}`))
-        .setThumbnailAccessory(new ThumbnailBuilder().setURL(data.authorIcon || 'https://cdn.discordapp.com/embed/avatars/0.png'))
-    );
-  }
-
-  if (data.footer) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.footer));
-  }
-
-  // ===== BUTTONS (Link, Add Role, Remove Role, Toggle Role) =====
+  // Buttons
   const rows = [container];
 
   if (data.buttons?.length) {
@@ -75,12 +97,11 @@ function buildCleanEmbed(data) {
     const linkButtons = [];
 
     for (const btn of data.buttons) {
-      if (btn.type === 'link') {
-        linkButtons.push(btn);
-      } else if (btn.type === 'role') {
+      if (btn.type === 'link') linkButtons.push(btn);
+      else if (btn.type === 'role') {
         actionButtons.push(
           new ButtonBuilder()
-            .setCustomId(`eb_action_role_${btn.roleId}_${btn.action}_${data.userId || 'user'}`)
+            .setCustomId(`eb_action_role_${btn.roleId}_${btn.action}`)
             .setLabel(btn.label)
             .setStyle(
               btn.action === 'add' ? ButtonStyle.Success :
@@ -91,14 +112,11 @@ function buildCleanEmbed(data) {
       }
     }
 
-    // Action buttons (roles)
     if (actionButtons.length) {
       const row = new ActionRowBuilder();
       for (const b of actionButtons.slice(0, 5)) row.addComponents(b);
       rows.push(row);
     }
-
-    // Link buttons
     if (linkButtons.length) {
       const row = new ActionRowBuilder();
       for (const b of linkButtons.slice(0, 5)) row.addComponents(
@@ -114,80 +132,129 @@ function buildCleanEmbed(data) {
 // ===== FRONT PAGE =====
 function buildFront(data) {
   const isV2 = data.mode === 'v2';
-  const container = new ContainerBuilder().setAccentColor(data.color || (isV2 ? 0x9B59B6 : 0x5865F2));
-
-  if (data.title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${data.title}`));
-  if (data.description) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.description));
-
-  if (data.thumbnail) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**🔳 Thumbnail**`))
-        .setThumbnailAccessory(new ThumbnailBuilder().setURL(data.thumbnail))
-    );
-  }
-
-  if (data.fields?.length) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    for (const f of data.fields) {
-      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${f.name}**\n${f.value}`));
-    }
-  }
-
-  if (isV2 && data.sections?.length) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    for (const s of data.sections) {
-      const sb = new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(s.text));
-      if (s.thumbnail) sb.setThumbnailAccessory(new ThumbnailBuilder().setURL(s.thumbnail));
-      container.addSectionComponents(sb);
-    }
-  }
-
-  if (data.image) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(data.image))
-    );
-  }
-
-  if (data.author) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Author:** ${data.author}`))
-        .setThumbnailAccessory(new ThumbnailBuilder().setURL(data.authorIcon || 'https://cdn.discordapp.com/embed/avatars/0.png'))
-    );
-  }
-
-  if (data.footer) {
-    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.footer));
-  }
-
-  if (!data.title && !data.description && !data.fields?.length && !data.image && !data.thumbnail && !data.author) {
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`*No content yet — start editing below.*`));
-  }
+  const rows = buildEmbedFromBlocks(data);
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_open_v1').setLabel('Classic (V1)').setEmoji('📋').setStyle(isV2 ? ButtonStyle.Secondary : ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_open_v2').setLabel('Modern (V2)').setEmoji('✨').setStyle(isV2 ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_toggle_ephemeral').setLabel(data.ephemeral ? 'Ephemeral: ON' : 'Ephemeral: OFF').setEmoji('👁️').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('eb_open_v1').setLabel('V1').setEmoji('📋').setStyle(isV2 ? ButtonStyle.Secondary : ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('eb_open_v2').setLabel('V2').setEmoji('✨').setStyle(isV2 ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_edit_existing').setLabel('Edit Existing').setEmoji('✏️').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_toggle_ephemeral').setLabel(data.ephemeral ? 'Eph: ON' : 'Eph: OFF').setEmoji('👁️').setStyle(ButtonStyle.Secondary)
   );
 
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_content').setLabel('Content').setEmoji('📝').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_media').setLabel('Media').setEmoji('🖼️').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_fields').setLabel('Fields').setEmoji('📋').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_buttons').setLabel('Buttons').setEmoji('🔗').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('eb_blocks').setLabel('Blocks').setEmoji('🧱').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('eb_buttons').setLabel('Buttons').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_history').setLabel('History').setEmoji('📜').setStyle(ButtonStyle.Secondary)
   );
 
   const row3 = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('eb_preview').setLabel('Send').setEmoji('📤').setStyle(ButtonStyle.Success),
     new ButtonBuilder().setCustomId('eb_send_channel').setLabel('Send to Channel').setEmoji('📨').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('eb_history').setLabel('History').setEmoji('📜').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId('eb_reset').setLabel('Reset').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
     new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+  );
+
+  return [...rows, row1, row2, row3];
+}
+
+// ===== BLOCKS MENU (Add blocks) =====
+function buildBlocksMenu(data) {
+  const container = new ContainerBuilder()
+    .setAccentColor(0x5865F2)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🧱 Blocks\n**Add blocks to your embed**`))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      `**Current blocks:** ${data.blocks?.length || 0}\n` +
+      (data.blocks?.length
+        ? data.blocks.map((b, i) => `${i + 1}. **${b.type}**${b.content ? ' — ' + b.content.slice(0, 30) : ''}`).join('\n')
+        : '*No blocks yet*')
+    ))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      `**Add block:**\n` +
+      `📌 Title  |  📄 Text  |  ➖ Separator\n` +
+      `🔳 Thumbnail  |  🖼️ Image  |  👤 Author\n` +
+      `📋 Field  |  ✨ Section`
+    ));
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_add_block_title').setLabel('Title').setEmoji('📌').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_add_block_text').setLabel('Text').setEmoji('📄').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_add_block_separator').setLabel('Separator').setEmoji('➖').setStyle(ButtonStyle.Secondary)
+  );
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_add_block_thumbnail').setLabel('Thumbnail').setEmoji('🔳').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_add_block_image').setLabel('Image').setEmoji('🖼️').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_add_block_author').setLabel('Author').setEmoji('👤').setStyle(ButtonStyle.Secondary)
+  );
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_add_block_field').setLabel('Field').setEmoji('📋').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_add_block_section').setLabel('Section').setEmoji('✨').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_clear_blocks').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger)
+  );
+  const row4 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_manage_blocks').setLabel('Manage Blocks').setEmoji('🔧').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+  );
+
+  return [container, row1, row2, row3, row4];
+}
+
+// ===== MANAGE BLOCKS (Reorder, Delete) =====
+function buildManageBlocksMenu(data) {
+  const container = new ContainerBuilder()
+    .setAccentColor(0xEB459E)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🔧 Manage Blocks\n**Reorder or delete blocks**`))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+
+  if (data.blocks?.length) {
+    for (let i = 0; i < data.blocks.length; i++) {
+      const b = data.blocks[i];
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(
+        `**${i + 1}.** ${b.type}${b.content ? ' — ' + b.content.slice(0, 30) : ''}`
+      ));
+    }
+  } else {
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`*No blocks*`));
+  }
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_move_up').setLabel('Move Up').setEmoji('⬆️').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_move_down').setLabel('Move Down').setEmoji('⬇️').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_delete_block').setLabel('Delete').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+  );
+
+  return [container, row];
+}
+
+// ===== BUTTONS MENU =====
+function buildButtonsMenu(data) {
+  const container = new ContainerBuilder()
+    .setAccentColor(0x1ABC9C)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🔗 Buttons\n**Add buttons to your embed**`))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+      `**Current buttons:** ${data.buttons?.length || 0}\n` +
+      (data.buttons?.length
+        ? data.buttons.map((b, i) => {
+            const type = b.type === 'link' ? '🔗 Link' : b.type === 'role' ? `🎭 Role (${b.action})` : '❓';
+            return `${i + 1}. **${b.label}** — ${type}`;
+          }).join('\n')
+        : '*No buttons yet*')
+    ));
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_add_button').setLabel('Paste Link').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_add_role').setLabel('Add Role').setEmoji('➕').setStyle(ButtonStyle.Success)
+  );
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_remove_role').setLabel('Remove Role').setEmoji('➖').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('eb_toggle_role').setLabel('Toggle Role').setEmoji('🔄').setStyle(ButtonStyle.Primary)
+  );
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_clear_buttons').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
   );
 
   return [container, row1, row2, row3];
@@ -207,7 +274,7 @@ function buildHistoryPanel(data) {
       ));
     }
   } else {
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`*No history yet — start editing!*`));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`*No history yet*`));
   }
 
   const row = new ActionRowBuilder().addComponents(
@@ -218,118 +285,11 @@ function buildHistoryPanel(data) {
   return [container, row];
 }
 
-// ===== SUB MENUS =====
-function buildContentMenu(data) {
-  const container = new ContainerBuilder()
-    .setAccentColor(0x5865F2)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 📝 Content\n**Title, Description, Color**`))
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `**Title:** ${data.title || '*Not set*'}\n` +
-      `**Description:** ${data.description ? data.description.slice(0, 50) + '...' : '*Not set*'}\n` +
-      `**Color:** ${data.color ? '#' + data.color.toString(16).padStart(6, '0') : '*Not set*'}`
-    ));
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_set_title').setLabel('Title').setEmoji('📌').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_set_desc').setLabel('Description').setEmoji('📄').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_set_color').setLabel('Color').setEmoji('🎨').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
-  );
-
-  return [container, row];
-}
-
-function buildMediaMenu(data) {
-  const container = new ContainerBuilder()
-    .setAccentColor(0x9B59B6)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🖼️ Media\n**Author, Thumbnail, Image, Footer**`))
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `**Author:** ${data.author || '*Not set*'}\n` +
-      `**Thumbnail:** ${data.thumbnail ? '✅ Set' : '*Not set*'}\n` +
-      `**Image:** ${data.image ? '✅ Set' : '*Not set*'}\n` +
-      `**Footer:** ${data.footer || '*Not set*'}`
-    ));
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_set_author').setLabel('Author').setEmoji('👤').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_set_thumb').setLabel('Thumbnail').setEmoji('🔳').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_set_image').setLabel('Image').setEmoji('🖼️').setStyle(ButtonStyle.Secondary)
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_set_footer').setLabel('Footer').setEmoji('📎').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
-  );
-
-  return [container, row1, row2];
-}
-
-function buildFieldsMenu(data) {
-  const container = new ContainerBuilder()
-    .setAccentColor(0xEB459E)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 📋 Fields\n**Add title + value pairs**`))
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `**Fields:** ${data.fields?.length || 0}\n` +
-      (data.fields?.length ? data.fields.map((f, i) => `${i + 1}. **${f.name}** → ${f.value.slice(0, 30)}`).join('\n') : '*No fields yet*')
-    ));
-
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_add_field').setLabel('Add Field').setEmoji('➕').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('eb_clear_fields').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
-  );
-
-  return [container, row];
-}
-
-// ===== BUTTONS MENU (updated — 4 options) =====
-function buildButtonsMenu(data) {
-  const container = new ContainerBuilder()
-    .setAccentColor(0x1ABC9C)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🔗 Buttons\n**Add buttons to your embed**`))
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `**Current buttons:** ${data.buttons?.length || 0}\n` +
-      (data.buttons?.length
-        ? data.buttons.map((b, i) => {
-            const type = b.type === 'link' ? '🔗 Link' : b.type === 'role' ? `🎭 Role (${b.action})` : '❓';
-            return `${i + 1}. **${b.label}** — ${type}`;
-          }).join('\n')
-        : '*No buttons yet*')
-    ))
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-      `**Add new:**\n` +
-      `🔗 **Paste Link** — Link button\n` +
-      `➕ **Add Role** — Role add button\n` +
-      `➖ **Remove Role** — Role remove button\n` +
-      `🔄 **Toggle Role** — Role toggle button`
-    ));
-
-  const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_add_button').setLabel('Paste Link').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('eb_add_role').setLabel('Add Role').setEmoji('➕').setStyle(ButtonStyle.Success)
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_remove_role').setLabel('Remove Role').setEmoji('➖').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_toggle_role').setLabel('Toggle Role').setEmoji('🔄').setStyle(ButtonStyle.Primary)
-  );
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('eb_clear_buttons').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
-  );
-
-  return [container, row1, row2, row3];
-}
-
 module.exports = {
-  buildCleanEmbed,
+  buildEmbedFromBlocks,
   buildFront,
-  buildHistoryPanel,
-  buildContentMenu,
-  buildMediaMenu,
-  buildFieldsMenu,
+  buildBlocksMenu,
+  buildManageBlocksMenu,
   buildButtonsMenu,
+  buildHistoryPanel,
 };
