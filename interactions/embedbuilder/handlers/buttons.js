@@ -1,287 +1,265 @@
-const {
-  ModalBuilder,
-  TextInputBuilder,
-  TextInputStyle,
-  ActionRowBuilder,
-} = require('discord.js');
+const { TextInputStyle } = require('discord.js');
 const emojis = require('../../../emojis/emojis');
 const {
   buildEmbedFromBlocks,
-  buildStartPage,
   buildBuilderPage,
-  buildBlocksMenu,
   buildManageBlocksMenu,
-  buildButtonsMenu,
-  buildStyleMenu,
-  buildHistoryPanel,
-  buildHelpPage,
 } = require('../core');
-const { MODAL_CONFIGS } = require('./modals');
 
-function getData(client, userId) {
-  if (!client.embedBuilders) client.embedBuilders = new Map();
-  if (!client.embedBuilders.has(userId)) {
-    client.embedBuilders.set(userId, {
-      blocks: [], buttons: [], mode: 'v1', color: null, history: [], editing: null,
-    });
-  }
-  return client.embedBuilders.get(userId);
+const MODAL_CONFIGS = {
+  eb_add_block_title: { id: 'modal_block_title', title: 'Add Title Block', fields: [
+    { id: 'content', label: 'Title text', style: TextInputStyle.Short, required: true }]},
+  eb_add_block_text: { id: 'modal_block_text', title: 'Add Text Block', fields: [
+    { id: 'content', label: 'Text content', style: TextInputStyle.Paragraph, required: true }]},
+  eb_add_block_thumbnail: { id: 'modal_block_thumb', title: 'Add Thumbnail Block', fields: [
+    { id: 'label', label: 'Label (optional)', style: TextInputStyle.Short, required: false },
+    { id: 'url', label: 'Image URL', style: TextInputStyle.Short, required: true }]},
+  eb_add_block_image: { id: 'modal_block_image', title: 'Add Image Block', fields: [
+    { id: 'url', label: 'Image URL', style: TextInputStyle.Short, required: true }]},
+  eb_add_block_author: { id: 'modal_block_author', title: 'Add Author Block', fields: [
+    { id: 'name', label: 'Author name', style: TextInputStyle.Short, required: true },
+    { id: 'icon', label: 'Icon URL (optional)', style: TextInputStyle.Short, required: false }]},
+  eb_add_block_field: { id: 'modal_block_field', title: 'Add Field Block', fields: [
+    { id: 'name', label: 'Field name', style: TextInputStyle.Short, required: true },
+    { id: 'value', label: 'Field value', style: TextInputStyle.Paragraph, required: true }]},
+  eb_add_block_section: { id: 'modal_block_section', title: 'Add Section Block', fields: [
+    { id: 'text', label: 'Section text', style: TextInputStyle.Paragraph, required: true },
+    { id: 'thumbnail', label: 'Thumbnail URL (optional)', style: TextInputStyle.Short, required: false }]},
+  eb_add_button: { id: 'modal_button', title: 'Add Link Button', fields: [
+    { id: 'label', label: 'Button label', style: TextInputStyle.Short, required: true },
+    { id: 'url', label: 'URL (https://...)', style: TextInputStyle.Short, required: true }]},
+  eb_add_role: { id: 'modal_role_add', title: 'Add Role Button', fields: [
+    { id: 'label', label: 'Button label', style: TextInputStyle.Short, required: true },
+    { id: 'role_id', label: 'Role ID', style: TextInputStyle.Short, required: true }]},
+  eb_remove_role: { id: 'modal_role_remove', title: 'Remove Role Button', fields: [
+    { id: 'label', label: 'Button label', style: TextInputStyle.Short, required: true },
+    { id: 'role_id', label: 'Role ID', style: TextInputStyle.Short, required: true }]},
+  eb_toggle_role: { id: 'modal_role_toggle', title: 'Toggle Role Button', fields: [
+    { id: 'label', label: 'Button label', style: TextInputStyle.Short, required: true },
+    { id: 'role_id', label: 'Role ID', style: TextInputStyle.Short, required: true }]},
+  eb_send_channel: { id: 'modal_send', title: 'Send to Channel', fields: [
+    { id: 'channel_id', label: 'Channel ID', style: TextInputStyle.Short, required: true }]},
+  eb_edit_existing: { id: 'modal_edit_existing', title: 'Edit Existing Message', fields: [
+    { id: 'channel_id', label: 'Channel ID', style: TextInputStyle.Short, required: true },
+    { id: 'message_id', label: 'Message ID', style: TextInputStyle.Short, required: true }]},
+  // Position-based actions
+  eb_move: { id: 'modal_move', title: 'Move Block', fields: [
+    { id: 'from', label: 'From position', style: TextInputStyle.Short, required: true },
+    { id: 'to', label: 'To position', style: TextInputStyle.Short, required: true }]},
+  eb_delete_block: { id: 'modal_delete_block', title: 'Delete Block', fields: [
+    { id: 'index', label: 'Block position', style: TextInputStyle.Short, required: true }]},
+  eb_swap: { id: 'modal_swap', title: 'Swap Blocks', fields: [
+    { id: 'pos1', label: 'First position', style: TextInputStyle.Short, required: true },
+    { id: 'pos2', label: 'Second position', style: TextInputStyle.Short, required: true }]},
+};
+
+function addHistory(data, field, value) {
+  if (!data.history) data.history = [];
+  data.history.push({
+    field,
+    value: value.length > 50 ? value.slice(0, 50) + '...' : value,
+  });
+  if (data.history.length > 20) data.history.shift();
 }
 
-async function handleButton(interaction, client) {
-  const id = interaction.customId;
-  const data = getData(client, interaction.user.id);
+async function handleModal(interaction, client) {
+  const data = client.embedBuilders?.get(interaction.user.id);
+  if (!data) return interaction.reply({ content: 'Session expired. Run `/embedbuilder` again.', ephemeral: true });
 
-  // Close
-  if (id === 'embed_close') {
-    client.embedBuilders.delete(interaction.user.id);
-    await interaction.update({ components: [] });
-    return true;
-  }
+  try {
+    const id = interaction.customId;
 
-  // Home
-  if (id === 'eb_home') {
-    await interaction.update({ components: buildStartPage(), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
+    if (id === 'modal_block_title') {
+      data.blocks.push({ type: 'title', content: interaction.fields.getTextInputValue('content') });
+      addHistory(data, 'Title', interaction.fields.getTextInputValue('content'));
+    }
+    else if (id === 'modal_block_text') {
+      data.blocks.push({ type: 'text', content: interaction.fields.getTextInputValue('content') });
+      addHistory(data, 'Text', interaction.fields.getTextInputValue('content'));
+    }
+    else if (id === 'modal_block_thumb') {
+      data.blocks.push({
+        type: 'thumbnail',
+        label: interaction.fields.getTextInputValue('label') || '',
+        url: interaction.fields.getTextInputValue('url'),
+      });
+      addHistory(data, 'Thumbnail', 'Added');
+    }
+    else if (id === 'modal_block_image') {
+      data.blocks.push({ type: 'image', url: interaction.fields.getTextInputValue('url') });
+      addHistory(data, 'Image', 'Added');
+    }
+    else if (id === 'modal_block_author') {
+      data.blocks.push({
+        type: 'author',
+        name: interaction.fields.getTextInputValue('name'),
+        icon: interaction.fields.getTextInputValue('icon') || null,
+      });
+      addHistory(data, 'Author', interaction.fields.getTextInputValue('name'));
+    }
+    else if (id === 'modal_block_field') {
+      data.blocks.push({
+        type: 'field',
+        name: interaction.fields.getTextInputValue('name'),
+        value: interaction.fields.getTextInputValue('value'),
+      });
+      addHistory(data, 'Field', interaction.fields.getTextInputValue('name'));
+    }
+    else if (id === 'modal_block_section') {
+      data.blocks.push({
+        type: 'section',
+        text: interaction.fields.getTextInputValue('text'),
+        thumbnail: interaction.fields.getTextInputValue('thumbnail') || null,
+      });
+      addHistory(data, 'Section', 'Added');
+    }
+    else if (id === 'modal_button') {
+      data.buttons.push({
+        type: 'link',
+        label: interaction.fields.getTextInputValue('label'),
+        url: interaction.fields.getTextInputValue('url'),
+      });
+      addHistory(data, 'Link Button', interaction.fields.getTextInputValue('label'));
+    }
+    else if (id === 'modal_role_add' || id === 'modal_role_remove' || id === 'modal_role_toggle') {
+      const action = id === 'modal_role_add' ? 'add' : id === 'modal_role_remove' ? 'remove' : 'toggle';
+      data.buttons.push({
+        type: 'role',
+        action,
+        label: interaction.fields.getTextInputValue('label'),
+        roleId: interaction.fields.getTextInputValue('role_id'),
+      });
+      addHistory(data, `Role ${action}`, interaction.fields.getTextInputValue('label'));
+    }
+    else if (id === 'modal_color') {
+      const c = interaction.fields.getTextInputValue('color');
+      data.color = c.startsWith('#') ? parseInt(c.slice(1), 16) : (parseInt(c, 16) || 0xFFFFFF);
+      addHistory(data, 'Color', c);
+      await interaction.update({ components: buildBuilderPage(data, data.mode), flags: 1 << 15 | 1 << 6 });
+      return;
+    }
+    else if (id === 'modal_send') {
+      const channelId = interaction.fields.getTextInputValue('channel_id');
+      const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+      if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+      await channel.send({ components: buildEmbedFromBlocks(data), flags: 1 << 15 });
+      return interaction.reply({ content: `${emojis.success} Sent to ${channel}.`, ephemeral: true });
+    }
+    else if (id === 'modal_edit_existing') {
+      const channelId = interaction.fields.getTextInputValue('channel_id');
+      const messageId = interaction.fields.getTextInputValue('message_id');
+      const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
+      if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
+      const msg = await channel.messages.fetch(messageId).catch(() => null);
+      if (!msg) return interaction.reply({ content: 'Message not found.', ephemeral: true });
 
-  // Start pages
-  if (id === 'eb_start_v1') {
-    data.mode = 'v1';
-    await interaction.update({ components: buildBuilderPage(data, 'v1'), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
-  if (id === 'eb_start_v2') {
-    data.mode = 'v2';
-    await interaction.update({ components: buildBuilderPage(data, 'v2'), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
-  if (id === 'eb_start_edit') {
-    const modal = new ModalBuilder().setCustomId('modal_edit_existing').setTitle('Edit Existing Message');
-    modal.addComponents(
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId('channel_id').setLabel('Channel ID').setStyle(TextInputStyle.Short).setRequired(true)
-      ),
-      new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId('message_id').setLabel('Message ID').setStyle(TextInputStyle.Short).setRequired(true)
-      )
-    );
-    await interaction.showModal(modal);
-    return true;
-  }
-  if (id === 'eb_start_import') {
-    const modal = new ModalBuilder().setCustomId('modal_import_json').setTitle('Import JSON');
-    modal.addComponents(new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('json_data').setLabel('Paste JSON here').setStyle(TextInputStyle.Paragraph).setRequired(true)
-    ));
-    await interaction.showModal(modal);
-    return true;
-  }
-  if (id === 'eb_start_help') {
-    await interaction.update({ components: buildHelpPage(), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
+      data.editing = { channelId, messageId };
+      await interaction.reply({
+        content: `${emojis.success} Now editing message in ${channel}. Click Send to apply changes.`,
+        ephemeral: true,
+      });
+      return;
+    }
+    else if (id === 'modal_import_json') {
+      const json = interaction.fields.getTextInputValue('json_data');
+      try {
+        const parsed = JSON.parse(json);
+        if (parsed.blocks) data.blocks = parsed.blocks;
+        if (parsed.buttons) data.buttons = parsed.buttons;
+        if (parsed.color) data.color = parsed.color;
+        if (parsed.mode) data.mode = parsed.mode;
+        addHistory(data, 'Import', 'JSON loaded');
+        await interaction.reply({ content: `${emojis.success} JSON imported!`, ephemeral: true });
+      } catch (err) {
+        return interaction.reply({ content: 'Invalid JSON.', ephemeral: true });
+      }
+      return;
+    }
+    // Position actions
+    else if (id === 'modal_move') {
+      const from = parseInt(interaction.fields.getTextInputValue('from')) - 1;
+      const to = parseInt(interaction.fields.getTextInputValue('to')) - 1;
+      if (isNaN(from) || isNaN(to) || from < 0 || to < 0 || from >= data.blocks.length || to >= data.blocks.length) {
+        return interaction.reply({ content: 'Invalid positions.', ephemeral: true });
+      }
+      const [block] = data.blocks.splice(from, 1);
+      data.blocks.splice(to, 0, block);
+      addHistory(data, 'Move Block', `${from + 1} → ${to + 1}`);
+      await interaction.update({ components: buildManageBlocksMenu(data), flags: 1 << 15 | 1 << 6 });
+      return;
+    }
+    else if (id === 'modal_delete_block') {
+      const index = parseInt(interaction.fields.getTextInputValue('index')) - 1;
+      if (isNaN(index) || index < 0 || index >= data.blocks.length) {
+        return interaction.reply({ content: 'Invalid position.', ephemeral: true });
+      }
+      data.blocks.splice(index, 1);
+      addHistory(data, 'Delete Block', `Position ${index + 1}`);
+      await interaction.update({ components: buildManageBlocksMenu(data), flags: 1 << 15 | 1 << 6 });
+      return;
+    }
+    else if (id === 'modal_swap') {
+      const p1 = parseInt(interaction.fields.getTextInputValue('pos1')) - 1;
+      const p2 = parseInt(interaction.fields.getTextInputValue('pos2')) - 1;
+      if (isNaN(p1) || isNaN(p2) || p1 < 0 || p2 < 0 || p1 >= data.blocks.length || p2 >= data.blocks.length) {
+        return interaction.reply({ content: 'Invalid positions.', ephemeral: true });
+      }
+      [data.blocks[p1], data.blocks[p2]] = [data.blocks[p2], data.blocks[p1]];
+      addHistory(data, 'Swap Blocks', `${p1 + 1} ↔ ${p2 + 1}`);
+      await interaction.update({ components: buildManageBlocksMenu(data), flags: 1 << 15 | 1 << 6 });
+      return;
+    }
 
-  // Navigation
-  if (id === 'eb_back_builder') {
     await interaction.update({ components: buildBuilderPage(data, data.mode), flags: 1 << 15 | 1 << 6 });
-    return true;
+  } catch (error) {
+    console.error(error);
+    await interaction.reply({ content: 'Something went wrong.', ephemeral: true });
   }
-  if (id === 'eb_back_blocks') {
-    await interaction.update({ components: buildBlocksMenu(data), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
-
-  // Menus
-  if (id === 'eb_blocks') { await interaction.update({ components: buildBlocksMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
-  if (id === 'eb_manage_blocks') { await interaction.update({ components: buildManageBlocksMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
-  if (id === 'eb_buttons') { await interaction.update({ components: buildButtonsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
-  if (id === 'eb_style') { await interaction.update({ components: buildStyleMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
-  if (id === 'eb_history') { await interaction.update({ components: buildHistoryPanel(data), flags: 1 << 15 | 1 << 6 }); return true; }
-
-  // Clear
-  if (id === 'eb_clear_blocks') { data.blocks = []; await interaction.update({ components: buildBlocksMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
-  if (id === 'eb_clear_buttons') { data.buttons = []; await interaction.update({ components: buildButtonsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
-  if (id === 'eb_clear_history') { data.history = []; await interaction.update({ components: buildHistoryPanel(data), flags: 1 << 15 | 1 << 6 }); return true; }
-
-  // Reset
-  if (id === 'eb_reset') {
-    const mode = data.mode;
-    client.embedBuilders.set(interaction.user.id, {
-      blocks: [], buttons: [], mode, color: null, history: [], editing: null,
-    });
-    await interaction.update({ components: buildBuilderPage(client.embedBuilders.get(interaction.user.id), mode), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
-
-  // Custom color
-  if (id === 'eb_color_custom') {
-    const modal = new ModalBuilder().setCustomId('modal_color').setTitle('Custom Color');
-    modal.addComponents(new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('color').setLabel('Hex color (like #FFFFFF)').setStyle(TextInputStyle.Short).setRequired(true)
-    ));
-    await interaction.showModal(modal);
-    return true;
-  }
-
-  // Send
-  if (id === 'eb_preview') {
-    try {
-      const clean = buildEmbedFromBlocks(data);
-      if (data.editing) {
-        const channel = await interaction.guild.channels.fetch(data.editing.channelId).catch(() => null);
-        if (channel) {
-          const msg = await channel.messages.fetch(data.editing.messageId).catch(() => null);
-          if (msg) {
-            await msg.edit({ components: clean, flags: 1 << 15 });
-            data.editing = null;
-            return interaction.reply({ content: `${emojis.success} Message edited!`, ephemeral: true });
-          }
-        }
-        data.editing = null;
-      }
-      await interaction.channel.send({ components: clean, flags: 1 << 15 });
-      await interaction.reply({ content: `${emojis.success} Embed sent!`, ephemeral: true });
-    } catch (err) {
-      console.error(err);
-      await interaction.reply({ content: 'Failed to send.', ephemeral: true });
-    }
-    return true;
-  }
-
-  if (id === 'eb_send_channel') {
-    const modal = new ModalBuilder().setCustomId('modal_send').setTitle('Send to Channel');
-    modal.addComponents(new ActionRowBuilder().addComponents(
-      new TextInputBuilder().setCustomId('channel_id').setLabel('Channel ID').setStyle(TextInputStyle.Short).setRequired(true)
-    ));
-    await interaction.showModal(modal);
-    return true;
-  }
-
-  if (id === 'eb_export') {
-    const exportData = {
-      blocks: data.blocks,
-      buttons: data.buttons,
-      color: data.color,
-      mode: data.mode,
-    };
-    const json = JSON.stringify(exportData);
-    if (json.length > 1900) {
-      await interaction.reply({ content: 'JSON too long. Try removing some blocks.', ephemeral: true });
-    } else {
-      await interaction.reply({ content: `\`\`\`json\n${json}\n\`\`\``, ephemeral: true });
-    }
-    return true;
-  }
-
-  // Modal openers
-  const cfg = MODAL_CONFIGS[id];
-  if (cfg) {
-    const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
-    for (const f of cfg.fields) {
-      modal.addComponents(new ActionRowBuilder().addComponents(
-        new TextInputBuilder().setCustomId(f.id).setLabel(f.label).setStyle(f.style).setRequired(f.required)
-      ));
-    }
-    await interaction.showModal(modal);
-    return true;
-  }
-
-  return false;
 }
 
-// ===== HANDLE SELECT MENUS =====
-async function handleSelect(interaction, client) {
+async function handleRoleButton(interaction) {
   const id = interaction.customId;
-  const data = getData(client, interaction.user.id);
-  const value = interaction.values[0];
+  if (!id.startsWith('eb_action_role_')) return false;
 
-  // Block select
-  if (id === 'eb_block_select') {
-    const map = {
-      title: 'eb_add_block_title',
-      text: 'eb_add_block_text',
-      separator: 'eb_add_block_separator',
-      thumbnail: 'eb_add_block_thumbnail',
-      image: 'eb_add_block_image',
-      author: 'eb_add_block_author',
-      field: 'eb_add_block_field',
-      section: 'eb_add_block_section',
-    };
-    const cfg = MODAL_CONFIGS[map[value]];
-    if (cfg) {
-      const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
-      for (const f of cfg.fields) {
-        modal.addComponents(new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId(f.id).setLabel(f.label).setStyle(f.style).setRequired(f.required)
-        ));
-      }
-      await interaction.showModal(modal);
-    }
+  const parts = id.replace('eb_action_role_', '').split('_');
+  const roleId = parts[0];
+  const action = parts[1];
+
+  const role = interaction.guild.roles.cache.get(roleId);
+  if (!role) {
+    await interaction.reply({ content: 'Role not found.', ephemeral: true });
     return true;
   }
 
-  // Button select
-  if (id === 'eb_button_select') {
-    const map = {
-      link: 'eb_add_button',
-      role_add: 'eb_add_role',
-      role_remove: 'eb_remove_role',
-      role_toggle: 'eb_toggle_role',
-    };
-    const cfg = MODAL_CONFIGS[map[value]];
-    if (cfg) {
-      const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
-      for (const f of cfg.fields) {
-        modal.addComponents(new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId(f.id).setLabel(f.label).setStyle(f.style).setRequired(f.required)
-        ));
-      }
-      await interaction.showModal(modal);
-    }
-    return true;
-  }
-
-  // Color select
-  if (id === 'eb_color_select') {
-    data.color = parseInt(value, 16);
-    await interaction.update({ components: buildStyleMenu(data), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
-
-  // Manage select
-  if (id === 'eb_manage_select') {
-    if (value === 'move' || value === 'delete') {
-      const modal = new ModalBuilder()
-        .setCustomId(value === 'move' ? 'modal_move' : 'modal_delete_block')
-        .setTitle(value === 'move' ? 'Move Block' : 'Delete Block');
-
-      if (value === 'move') {
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('from').setLabel('From position').setStyle(TextInputStyle.Short).setRequired(true)
-          ),
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('to').setLabel('To position').setStyle(TextInputStyle.Short).setRequired(true)
-          )
-        );
+  const member = interaction.member;
+  try {
+    if (action === 'add') {
+      if (member.roles.cache.has(roleId)) return interaction.reply({ content: `You already have ${role}.`, ephemeral: true });
+      await member.roles.add(role);
+      await interaction.reply({ content: `${emojis.success} Added ${role}.`, ephemeral: true });
+    } else if (action === 'remove') {
+      if (!member.roles.cache.has(roleId)) return interaction.reply({ content: `You don't have ${role}.`, ephemeral: true });
+      await member.roles.remove(role);
+      await interaction.reply({ content: `${emojis.success} Removed ${role}.`, ephemeral: true });
+    } else if (action === 'toggle') {
+      if (member.roles.cache.has(roleId)) {
+        await member.roles.remove(role);
+        await interaction.reply({ content: `${emojis.success} Removed ${role}.`, ephemeral: true });
       } else {
-        modal.addComponents(
-          new ActionRowBuilder().addComponents(
-            new TextInputBuilder().setCustomId('index').setLabel('Block position').setStyle(TextInputStyle.Short).setRequired(true)
-          )
-        );
+        await member.roles.add(role);
+        await interaction.reply({ content: `${emojis.success} Added ${role}.`, ephemeral: true });
       }
-      await interaction.showModal(modal);
-    } else if (value === 'swap') {
-      const modal = new ModalBuilder().setCustomId('modal_swap').setTitle('Swap Blocks');
-      modal.addComponents(
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('pos1').setLabel('First position').setStyle(TextInputStyle.Short).setRequired(true)
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('pos2').setLabel('Second position').setStyle(TextInputStyle.Short).setRequired(true)
-        )
-      );
-      await interaction.showModal(modal);
-   
+    }
+  } catch (err) {
+    console.error(err);
+    await interaction.reply({ content: 'Failed. Check bot permissions.', ephemeral: true });
+  }
+  return true;
+}
+
+module.exports = {
+  MODAL_CONFIGS,
+  addHistory,
+  handleModal,
+  handleRoleButton,
+};
