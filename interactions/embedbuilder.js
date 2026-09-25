@@ -3,6 +3,8 @@ const {
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
+  SectionBuilder,
+  ThumbnailBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -27,11 +29,13 @@ function buildFront() {
       new TextDisplayBuilder().setContent(
         `Welcome to the **Embed Builder** — a powerful tool to create and send custom messages, embeds, and Components V2 containers.\n\n` +
         `**What you can do:**\n` +
-        `${emojis.arrowRight} Send plain text messages\n` +
-        `${emojis.arrowRight} Create classic V1 embeds\n` +
-        `${emojis.arrowRight} Create modern V2 embeds\n` +
-        `${emojis.arrowRight} Edit messages by ID\n` +
-        `${emojis.arrowRight} Send to any channel by ID\n\n` +
+        `${emojis.arrowRight} Build fully custom embeds\n` +
+        `${emojis.arrowRight} Add title, description, color, footer\n` +
+        `${emojis.arrowRight} Add author, thumbnail, image\n` +
+        `${emojis.arrowRight} Add fields with title + value\n` +
+        `${emojis.arrowRight} Add link buttons\n` +
+        `${emojis.arrowRight} Use V2 sections with thumbnails\n` +
+        `${emojis.arrowRight} Preview before sending\n\n` +
         `*Click **Get Started** below to begin.*`
       )
     )
@@ -46,185 +50,354 @@ function buildFront() {
   return [container, buttons];
 }
 
-// ===== MAIN PAGE =====
+// ===== MAIN MENU =====
 function buildMain() {
   const container = new ContainerBuilder()
     .setAccentColor(0x5865F2)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# ${emojis.star} Embed Builder — Options\n**Choose what you want to create**`
+        `# ${emojis.star} Embed Builder — Main Menu\n**Choose what you want to add or do**`
       )
     )
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `📝 **Message**\n${emojis.arrowRight} Send a plain text message\n\n` +
-        `📋 **V1 Embed**\n${emojis.arrowRight} Classic embed with title, desc, color\n\n` +
-        `✨ **V2 Embed**\n${emojis.arrowRight} Modern Components V2 container\n\n` +
-        `✏️ **Edit by ID**\n${emojis.arrowRight} Edit existing message via channel + message ID\n\n` +
-        `📤 **Send to Channel**\n${emojis.arrowRight} Send content to a specific channel`
+        `📝 **Content**\n${emojis.arrowRight} Title, Description, Color\n\n` +
+        `🖼️ **Media**\n${emojis.arrowRight} Author, Thumbnail, Image, Footer\n\n` +
+        `📋 **Fields**\n${emojis.arrowRight} Add fields with title + value\n\n` +
+        `🔗 **Buttons**\n${emojis.arrowRight} Add link buttons\n\n` +
+        `✨ **V2 Sections**\n${emojis.arrowRight} Sections with thumbnails\n\n` +
+        `👁️ **Preview & Send**\n${emojis.arrowRight} Review before sending`
       )
     )
     .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('embed_msg').setLabel('Message').setEmoji('📝').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('embed_v1').setLabel('V1 Embed').setEmoji('📋').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('embed_v2').setLabel('V2 Embed').setEmoji('✨').setStyle(ButtonStyle.Success)
+    new ButtonBuilder().setCustomId('eb_content').setLabel('Content').setEmoji('📝').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('eb_media').setLabel('Media').setEmoji('🖼️').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('eb_fields').setLabel('Fields').setEmoji('📋').setStyle(ButtonStyle.Secondary)
   );
   const row2 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('embed_edit').setLabel('Edit by ID').setEmoji('✏️').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('embed_channel').setLabel('Send to Channel').setEmoji('📤').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId('eb_buttons').setLabel('Buttons').setEmoji('🔗').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_sections').setLabel('V2 Sections').setEmoji('✨').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('eb_preview').setLabel('Preview & Send').setEmoji('👁️').setStyle(ButtonStyle.Success)
   );
   const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('embed_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId('eb_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_reset').setLabel('Reset').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
   );
 
   return [container, row1, row2, row3];
 }
 
-// ===== PREVIEW PAGE =====
-function buildPreview(type, data) {
-  const colorMap = { msg: 0x57F287, v1: 0x5865F2, v2: 0x9B59B6, edit: 0xFEE75C, channel: 0x1ABC9C };
-  const titleMap = {
-    msg: '📝 Message Preview',
-    v1: '📋 V1 Embed Preview',
-    v2: '✨ V2 Embed Preview',
-    edit: '✏️ Edit Preview',
-    channel: '📤 Channel Send Preview',
-  };
-
+// ===== CONTENT MENU =====
+function buildContentMenu() {
   const container = new ContainerBuilder()
-    .setAccentColor(colorMap[type] || 0xFFFFFF)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${titleMap[type] || 'Preview'}\n**Review your content before sending**`
-      )
-    )
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    .setAccentColor(0x5865F2)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 📝 Content\n**Title, Description, Color**`))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`Choose what to edit:`));
 
-  let body = '';
-
-  if (type === 'msg') {
-    body = `**Channel:** ${data.channel ? `<#${data.channel.id}>` : 'Current channel'}\n**Content:**\n${data.content}`;
-  } else if (type === 'v1') {
-    body = `**Channel:** ${data.channel ? `<#${data.channel.id}>` : 'Current channel'}\n` +
-      `**Title:** ${data.title}\n**Description:**\n${data.description}\n` +
-      `**Color:** ${data.color || '#5865F2'}\n**Footer:** ${data.footer || 'None'}`;
-  } else if (type === 'v2') {
-    body = `**Channel:** ${data.channel ? `<#${data.channel.id}>` : 'Current channel'}\n` +
-      `**Title:** ${data.title}\n**Content:**\n${data.content}\n` +
-      `**Accent Color:** ${data.color || '#5865F2'}`;
-  } else if (type === 'edit') {
-    body = `**Channel:** <#${data.channel.id}>\n**Message ID:** ${data.messageId}\n**New Content:**\n${data.content}`;
-  } else if (type === 'channel') {
-    body = `**Channel:** <#${data.channel.id}>\n**Content:**\n${data.content}`;
-  }
-
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(body));
-  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Click **Confirm** to send, **Cancel** to go back.*`));
-
-  const buttons = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('preview_confirm').setLabel('Confirm').setEmoji('✅').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('preview_cancel').setLabel('Cancel').setEmoji('❌').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('preview_back').setLabel('Back to Options').setEmoji('⬅️').setStyle(ButtonStyle.Secondary)
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_set_title').setLabel('Title').setEmoji('📌').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_set_desc').setLabel('Description').setEmoji('📄').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_set_color').setLabel('Color').setEmoji('🎨').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
   );
 
-  return [container, buttons];
+  return [container, row];
 }
 
-// ===== SEND SUCCESS =====
-function buildSuccess() {
+// ===== MEDIA MENU =====
+function buildMediaMenu() {
   const container = new ContainerBuilder()
-    .setAccentColor(0x57F287)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# ${emojis.success} Sent!\n**Your content has been sent successfully.**`)
-    );
-  return [container];
+    .setAccentColor(0x9B59B6)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🖼️ Media\n**Author, Thumbnail, Image, Footer**`))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`Choose what to edit:`));
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_set_author').setLabel('Author').setEmoji('👤').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_set_thumb').setLabel('Thumbnail').setEmoji('🔳').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_set_image').setLabel('Image').setEmoji('🖼️').setStyle(ButtonStyle.Secondary)
+  );
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_set_footer').setLabel('Footer').setEmoji('📎').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('eb_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+  );
+
+  return [container, row1, row2];
 }
 
-// ===== MODAL CONFIGS =====
+// ===== BUTTONS MENU =====
+function buildButtonsMenu() {
+  const container = new ContainerBuilder()
+    .setAccentColor(0x1ABC9C)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# 🔗 Buttons\n**Add link buttons to your embed**`))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`Add link buttons (max 5 per row):`));
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_add_button').setLabel('Add Button').setEmoji('➕').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('eb_clear_buttons').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('eb_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+  );
+
+  return [container, row];
+}
+
+// ===== SECTIONS MENU =====
+function buildSectionsMenu() {
+  const container = new ContainerBuilder()
+    .setAccentColor(0xEB459E)
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ✨ V2 Sections\n**Sections with thumbnails**`))
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`Add V2 sections with text + thumbnail:`));
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_add_section').setLabel('Add Section').setEmoji('➕').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('eb_clear_sections').setLabel('Clear All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('eb_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary)
+  );
+
+  return [container, row];
+}
+
+// ===== PREVIEW =====
+function buildPreview(data) {
+  const container = new ContainerBuilder().setAccentColor(data.color || 0x5865F2);
+
+  // Header
+  if (data.title) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`# ${data.title}`)
+    );
+  }
+
+  // Description
+  if (data.description) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(data.description)
+    );
+  }
+
+  // Fields
+  if (data.fields && data.fields.length > 0) {
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    for (const field of data.fields) {
+      container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${field.name}**\n${field.value}`)
+      );
+    }
+  }
+
+  // Sections
+  if (data.sections && data.sections.length > 0) {
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    for (const section of data.sections) {
+      const sb = new SectionBuilder().addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(section.text)
+      );
+      if (section.thumbnail) {
+        sb.setThumbnailAccessory(new ThumbnailBuilder().setURL(section.thumbnail));
+      }
+      container.addSectionComponents(sb);
+    }
+  }
+
+  // Author
+  if (data.author) {
+    container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`**Author:** ${data.author}`)
+    );
+  }
+
+  // Footer
+  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(data.footer || `*Powered by Dynamite Music*`)
+  );
+
+  // Preview buttons
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('eb_send').setLabel('Send').setEmoji('📤').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('eb_send_channel').setLabel('Send to Channel').setEmoji('📨').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('eb_main').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+  );
+
+  // Link buttons (if any)
+  const rows = [container, row];
+  if (data.buttons && data.buttons.length > 0) {
+    const linkRow = new ActionRowBuilder();
+    for (const btn of data.buttons.slice(0, 5)) {
+      linkRow.addComponents(
+        new ButtonBuilder().setLabel(btn.label).setURL(btn.url).setStyle(ButtonStyle.Link)
+      );
+    }
+    rows.push(linkRow);
+  }
+
+  return rows;
+}
+
+// ===== MODALS =====
 const MODAL_CONFIGS = {
-  embed_msg: { id: 'modal_msg', title: 'Send a Message', fields: [
-    { id: 'msg_channel', label: 'Channel ID (or leave empty for current)', style: TextInputStyle.Short, required: false },
-    { id: 'msg_content', label: 'Message content', style: TextInputStyle.Paragraph, required: true },
+  eb_set_title: { id: 'modal_eb_title', title: 'Set Title', fields: [
+    { id: 'title', label: 'Title', style: TextInputStyle.Short, required: true },
   ]},
-  embed_v1: { id: 'modal_v1', title: 'Create V1 Embed', fields: [
-    { id: 'v1_channel', label: 'Channel ID (or leave empty for current)', style: TextInputStyle.Short, required: false },
-    { id: 'v1_title', label: 'Title', style: TextInputStyle.Short, required: true },
-    { id: 'v1_description', label: 'Description', style: TextInputStyle.Paragraph, required: true },
-    { id: 'v1_color', label: 'Color (hex, like #5865F2)', style: TextInputStyle.Short, required: false },
-    { id: 'v1_footer', label: 'Footer text', style: TextInputStyle.Short, required: false },
+  eb_set_desc: { id: 'modal_eb_desc', title: 'Set Description', fields: [
+    { id: 'description', label: 'Description', style: TextInputStyle.Paragraph, required: true },
   ]},
-  embed_v2: { id: 'modal_v2', title: 'Create V2 Embed', fields: [
-    { id: 'v2_channel', label: 'Channel ID (or leave empty for current)', style: TextInputStyle.Short, required: false },
-    { id: 'v2_title', label: 'Title', style: TextInputStyle.Short, required: true },
-    { id: 'v2_content', label: 'Content', style: TextInputStyle.Paragraph, required: true },
-    { id: 'v2_color', label: 'Accent Color (hex, like #5865F2)', style: TextInputStyle.Short, required: false },
+  eb_set_color: { id: 'modal_eb_color', title: 'Set Color', fields: [
+    { id: 'color', label: 'Hex color (like #5865F2)', style: TextInputStyle.Short, required: true },
   ]},
-  embed_edit: { id: 'modal_edit', title: 'Edit Message by ID', fields: [
-    { id: 'edit_channel', label: 'Channel ID', style: TextInputStyle.Short, required: true },
-    { id: 'edit_message', label: 'Message ID', style: TextInputStyle.Short, required: true },
-    { id: 'edit_content', label: 'New content', style: TextInputStyle.Paragraph, required: true },
+  eb_set_author: { id: 'modal_eb_author', title: 'Set Author', fields: [
+    { id: 'author', label: 'Author name', style: TextInputStyle.Short, required: true },
+    { id: 'author_icon', label: 'Author icon URL (optional)', style: TextInputStyle.Short, required: false },
   ]},
-  embed_channel: { id: 'modal_channel', title: 'Send to Channel', fields: [
-    { id: 'send_channel', label: 'Channel ID', style: TextInputStyle.Short, required: true },
-    { id: 'send_content', label: 'Content', style: TextInputStyle.Paragraph, required: true },
+  eb_set_thumb: { id: 'modal_eb_thumb', title: 'Set Thumbnail', fields: [
+    { id: 'thumbnail', label: 'Thumbnail image URL', style: TextInputStyle.Short, required: true },
+  ]},
+  eb_set_image: { id: 'modal_eb_image', title: 'Set Image', fields: [
+    { id: 'image', label: 'Image URL', style: TextInputStyle.Short, required: true },
+  ]},
+  eb_set_footer: { id: 'modal_eb_footer', title: 'Set Footer', fields: [
+    { id: 'footer', label: 'Footer text', style: TextInputStyle.Short, required: true },
+  ]},
+  eb_fields: { id: 'modal_eb_field', title: 'Add Field', fields: [
+    { id: 'field_name', label: 'Field name', style: TextInputStyle.Short, required: true },
+    { id: 'field_value', label: 'Field value', style: TextInputStyle.Paragraph, required: true },
+  ]},
+  eb_add_button: { id: 'modal_eb_btn', title: 'Add Link Button', fields: [
+    { id: 'btn_label', label: 'Button label', style: TextInputStyle.Short, required: true },
+    { id: 'btn_url', label: 'Button URL (https://...)', style: TextInputStyle.Short, required: true },
+  ]},
+  eb_add_section: { id: 'modal_eb_section', title: 'Add V2 Section', fields: [
+    { id: 'section_text', label: 'Section text', style: TextInputStyle.Paragraph, required: true },
+    { id: 'section_thumb', label: 'Thumbnail URL (optional)', style: TextInputStyle.Short, required: false },
+  ]},
+  eb_send_channel: { id: 'modal_eb_send', title: 'Send to Channel', fields: [
+    { id: 'target_channel', label: 'Channel ID', style: TextInputStyle.Short, required: true },
   ]},
 };
 
 async function handleButton(interaction, client) {
   const id = interaction.customId;
 
+  // Initialize builder data
+  if (!client.embedBuilders) client.embedBuilders = new Map();
+  if (!client.embedBuilders.has(interaction.user.id)) {
+    client.embedBuilders.set(interaction.user.id, {
+      title: null,
+      description: null,
+      color: null,
+      author: null,
+      authorIcon: null,
+      thumbnail: null,
+      image: null,
+      footer: null,
+      fields: [],
+      buttons: [],
+      sections: [],
+    });
+  }
+  const data = client.embedBuilders.get(interaction.user.id);
+
+  // Navigation
   if (id === 'embed_close') {
+    client.embedBuilders.delete(interaction.user.id);
     await interaction.update({ components: [] });
     return true;
   }
-
-  if (id === 'embed_getstarted' || id === 'preview_back' || id === 'preview_cancel') {
+  if (id === 'embed_getstarted' || id === 'eb_main') {
     await interaction.update({ components: buildMain(), flags: 1 << 15 });
     return true;
   }
-
-  if (id === 'embed_back') {
+  if (id === 'eb_back') {
     await interaction.update({ components: buildFront(), flags: 1 << 15 });
     return true;
   }
+  if (id === 'eb_reset') {
+    client.embedBuilders.set(interaction.user.id, {
+      title: null, description: null, color: null, author: null, authorIcon: null,
+      thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
+    });
+    await interaction.update({ components: buildMain(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_content') {
+    await interaction.update({ components: buildContentMenu(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_media') {
+    await interaction.update({ components: buildMediaMenu(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_fields') {
+    await interaction.update({ components: buildButtonsMenu(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_buttons') {
+    await interaction.update({ components: buildButtonsMenu(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_sections') {
+    await interaction.update({ components: buildSectionsMenu(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_clear_buttons') {
+    data.buttons = [];
+    await interaction.update({ components: buildButtonsMenu(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_clear_sections') {
+    data.sections = [];
+    await interaction.update({ components: buildSectionsMenu(), flags: 1 << 15 });
+    return true;
+  }
+  if (id === 'eb_preview') {
+    await interaction.update({ components: buildPreview(data), flags: 1 << 15 });
+    return true;
+  }
 
-  if (id === 'preview_confirm') {
-    const pending = client.pendingEmbeds?.get(interaction.message.id);
-    if (!pending) {
-      await interaction.reply({ content: 'Preview expired. Please start again.', ephemeral: true });
-      return true;
-    }
-
+  // Send
+  if (id === 'eb_send') {
     try {
-      if (pending.type === 'msg' || pending.type === 'channel') {
-        await pending.channel.send(pending.content);
-      } else if (pending.type === 'v1') {
-        const embed = new EmbedBuilder().setTitle(pending.title).setDescription(pending.description);
-        if (pending.color) embed.setColor(pending.color.startsWith('#') ? parseInt(pending.color.slice(1), 16) : 0x5865F2);
-        if (pending.footer) embed.setFooter({ text: pending.footer });
-        await pending.channel.send({ embeds: [embed] });
-      } else if (pending.type === 'v2') {
-        const c = new ContainerBuilder()
-          .setAccentColor(pending.color?.startsWith('#') ? parseInt(pending.color.slice(1), 16) : 0x5865F2)
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${pending.title}`))
-          .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(pending.content))
-          .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
-          .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
-        await pending.channel.send({ components: [c], flags: 1 << 15 });
-      } else if (pending.type === 'edit') {
-        const msg = await pending.channel.messages.fetch(pending.messageId).catch(() => null);
-        if (msg) await msg.edit(pending.content);
+      const container = new ContainerBuilder().setAccentColor(data.color || 0x5865F2);
+      if (data.title) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${data.title}`));
+      if (data.description) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.description));
+      if (data.fields?.length) {
+        container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+        for (const f of data.fields) container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**${f.name}**\n${f.value}`));
+      }
+      if (data.sections?.length) {
+        container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+        for (const s of data.sections) {
+          const sb = new SectionBuilder().addTextDisplayComponents(new TextDisplayBuilder().setContent(s.text));
+          if (s.thumbnail) sb.setThumbnailAccessory(new ThumbnailBuilder().setURL(s.thumbnail));
+          container.addSectionComponents(sb);
+        }
+      }
+      if (data.author) {
+        container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Author:** ${data.author}`));
+      }
+      container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(data.footer || `*Powered by Dynamite Music*`));
+
+      const rows = [container];
+      if (data.buttons?.length) {
+        const linkRow = new ActionRowBuilder();
+        for (const b of data.buttons.slice(0, 5)) linkRow.addComponents(new ButtonBuilder().setLabel(b.label).setURL(b.url).setStyle(ButtonStyle.Link));
+        rows.push(linkRow);
       }
 
-      client.pendingEmbeds.delete(interaction.message.id);
-      await interaction.update({ components: buildSuccess(), flags: 1 << 15 });
+      await interaction.channel.send({ components: rows, flags: 1 << 15 });
+      await interaction.reply({ content: `${emojis.success} Embed sent!`, ephemeral: true });
     } catch (err) {
       console.error(err);
       await interaction.reply({ content: 'Failed to send.', ephemeral: true });
@@ -232,6 +405,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
+  // Modal openers
   const cfg = MODAL_CONFIGS[id];
   if (cfg) {
     const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
@@ -250,76 +424,22 @@ async function handleButton(interaction, client) {
 }
 
 async function handleModal(interaction, client) {
+  const data = client.embedBuilders?.get(interaction.user.id);
+  if (!data) return interaction.reply({ content: 'Session expired. Please run `/embedbuilder` again.', ephemeral: true });
+
   try {
-    let type, data;
+    const id = interaction.customId;
 
-    if (interaction.customId === 'modal_msg') {
-      const channelId = interaction.fields.getTextInputValue('msg_channel');
-      const content = interaction.fields.getTextInputValue('msg_content');
-      const channel = channelId ? await interaction.guild.channels.fetch(channelId).catch(() => null) : interaction.channel;
-      if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      type = 'msg'; data = { channel, content };
-    } else if (interaction.customId === 'modal_v1') {
-      const channelId = interaction.fields.getTextInputValue('v1_channel');
-      const title = interaction.fields.getTextInputValue('v1_title');
-      const description = interaction.fields.getTextInputValue('v1_description');
-      const color = interaction.fields.getTextInputValue('v1_color');
-      const footer = interaction.fields.getTextInputValue('v1_footer');
-      const channel = channelId ? await interaction.guild.channels.fetch(channelId).catch(() => null) : interaction.channel;
-      if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      type = 'v1'; data = { channel, title, description, color, footer };
-    } else if (interaction.customId === 'modal_v2') {
-      const channelId = interaction.fields.getTextInputValue('v2_channel');
-      const title = interaction.fields.getTextInputValue('v2_title');
-      const content = interaction.fields.getTextInputValue('v2_content');
-      const color = interaction.fields.getTextInputValue('v2_color');
-      const channel = channelId ? await interaction.guild.channels.fetch(channelId).catch(() => null) : interaction.channel;
-      if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      type = 'v2'; data = { channel, title, content, color };
-    } else if (interaction.customId === 'modal_edit') {
-      const channelId = interaction.fields.getTextInputValue('edit_channel');
-      const messageId = interaction.fields.getTextInputValue('edit_message');
-      const content = interaction.fields.getTextInputValue('edit_content');
-      const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
-      if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      const msg = await channel.messages.fetch(messageId).catch(() => null);
-      if (!msg) return interaction.reply({ content: 'Message not found.', ephemeral: true });
-      type = 'edit'; data = { channel, messageId, content };
-    } else if (interaction.customId === 'modal_channel') {
-      const channelId = interaction.fields.getTextInputValue('send_channel');
-      const content = interaction.fields.getTextInputValue('send_content');
-      const channel = await interaction.guild.channels.fetch(channelId).catch(() => null);
-      if (!channel) return interaction.reply({ content: 'Channel not found.', ephemeral: true });
-      type = 'channel'; data = { channel, content };
+    if (id === 'modal_eb_title') data.title = interaction.fields.getTextInputValue('title');
+    else if (id === 'modal_eb_desc') data.description = interaction.fields.getTextInputValue('description');
+    else if (id === 'modal_eb_color') {
+      const c = interaction.fields.getTextInputValue('color');
+      data.color = c.startsWith('#') ? parseInt(c.slice(1), 16) : 0x5865F2;
     }
-
-    if (!type) return false;
-
-    if (!client.pendingEmbeds) client.pendingEmbeds = new Map();
-    data.type = type;
-
-    const previewMsg = await interaction.reply({
-      components: buildPreview(type, data),
-      flags: 1 << 15,
-      fetchReply: true,
-    });
-
-    client.pendingEmbeds.set(previewMsg.id, data);
-    setTimeout(() => client.pendingEmbeds?.delete(previewMsg.id), 5 * 60 * 1000);
-    return true;
-  } catch (error) {
-    console.error(error);
-    await interaction.reply({ content: 'Something went wrong.', ephemeral: true });
-    return true;
-  }
-}
-
-module.exports = {
-  buildFront,
-  buildMain,
-  buildPreview,
-  handleButton,
-  handleModal,
-  isEmbedButton: (id) => id.startsWith('embed_') || id.startsWith('preview_'),
-  isEmbedModal: (id) => id.startsWith('modal_'),
-};
+    else if (id === 'modal_eb_author') {
+      data.author = interaction.fields.getTextInputValue('author');
+      data.authorIcon = interaction.fields.getTextInputValue('author_icon') || null;
+    }
+    else if (id === 'modal_eb_thumb') data.thumbnail = interaction.fields.getTextInputValue('thumbnail');
+    else if (id === 'modal_eb_image') data.image = interaction.fields.getTextInputValue('image');
+    else if (id === 'modal_eb_footer') d
