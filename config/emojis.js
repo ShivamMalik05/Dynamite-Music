@@ -42,7 +42,21 @@ module.exports = {
     channel: '📢',
     duration: '⏱️',
   },
-
+  
+  // ===== PERMISSION =====
+    permission: {
+    shield: '🛡️',
+    user: '👤',
+    role: '🎭',
+    check: '✅',
+    cross: '❌',
+    add: '➕',
+    remove: '➖',
+    list: '📜',
+    info: 'ℹ️',
+    warning: '⚠️',
+  },
+  
   // ===== UTILITY =====
   utility: {
     ping: '🏓',
