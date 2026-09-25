@@ -1,4 +1,10 @@
+// ============================================
+// EMOJI CONFIG
+// Change any emoji here — it updates everywhere
+// ============================================
+
 module.exports = {
+  // ===== GENERAL =====
   general: {
     success: '✅',
     error: '❌',
@@ -11,7 +17,11 @@ module.exports = {
     check: '✔️',
     cross: '✖️',
     star: '⭐',
+    fire: '🔥',
+    heart: '❤️',
   },
+
+  // ===== MODERATION =====
   moderation: {
     ban: '🔨',
     kick: '👢',
@@ -25,7 +35,15 @@ module.exports = {
     unlock: '🔓',
     nickname: '📝',
     timeout: '⏱️',
+    shield: '🛡️',
+    moderator: '🛡️',
+    reason: '📝',
+    user: '👤',
+    channel: '📢',
+    duration: '⏱️',
   },
+
+  // ===== UTILITY =====
   utility: {
     ping: '🏓',
     user: '👤',
@@ -37,11 +55,15 @@ module.exports = {
     setlog: '📝',
     embedbuilder: '🎨',
   },
+
+  // ===== FUN =====
   fun: {
     smile: '😄',
     party: '🎉',
     say: '💬',
   },
+
+  // ===== LOGS =====
   logs: {
     moderation: '🛡️',
     messages: '💬',
@@ -50,7 +72,18 @@ module.exports = {
     roles: '🎭',
     voice: '🔊',
     server: '🏠',
+    joins: '✅',
+    leaves: '❌',
+    edits: '✏️',
+    deletes: '🗑️',
+    bans: '🔨',
+    unbans: '🔓',
+    timeouts: '⏱️',
+    muted: '🔇',
+    unmuted: '🔊',
   },
+
+  // ===== EMBED =====
   embed: {
     star: '⭐',
     chart: '📊',
