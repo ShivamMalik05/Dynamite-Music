@@ -1,8 +1,6 @@
 const {
   ContainerBuilder,
   TextDisplayBuilder,
-  SeparatorBuilder,
-  SeparatorSpacingSize,
   SectionBuilder,
   ThumbnailBuilder,
   MediaGalleryBuilder,
@@ -11,17 +9,24 @@ const {
   ButtonBuilder,
   ButtonStyle,
   StringSelectMenuBuilder,
-  UserSelectMenuBuilder,
-  RoleSelectMenuBuilder,
-  ChannelSelectMenuBuilder,
-  ChannelType,
 } = require('discord.js');
 
-// ===== SAFE SEPARATOR =====
+// ===== SAFE SEPARATOR (no SeparatorSpacingSize dependency) =====
 function makeSeparator() {
-  return new SeparatorBuilder()
-    .setSpacing(SeparatorSpacingSize.Small)
-    .setDivider(true);
+  try {
+    const { SeparatorBuilder } = require('discord.js');
+    const sep = new SeparatorBuilder();
+    if (typeof sep.setSpacing === 'function') {
+      sep.setSpacing(1); // 1 = Small
+    }
+    if (typeof sep.setDivider === 'function') {
+      sep.setDivider(true);
+    }
+    return sep;
+  } catch (err) {
+    console.error('Separator error:', err.message);
+    return { type: 14, divider: true, spacing: 1 };
+  }
 }
 
 // ===== SAFE THUMBNAIL =====
@@ -29,7 +34,8 @@ function makeThumbnail(url) {
   if (!url) return null;
   try {
     return new ThumbnailBuilder().setURL(url);
-  } catch {
+  } catch (err) {
+    console.error('Thumbnail error:', err.message);
     return null;
   }
 }
@@ -73,7 +79,9 @@ function buildEmbedFromBlocks(data) {
               new MediaGalleryItemBuilder().setURL(block.url)
             )
           );
-        } catch {}
+        } catch (err) {
+          console.error('Image error:', err.message);
+        }
       }
       else if (block.type === 'author' && block.name) {
         const thumb = makeThumbnail(block.icon);
@@ -107,7 +115,6 @@ function buildEmbedFromBlocks(data) {
     );
   }
 
-  // Buttons
   const rows = [container];
 
   if (data.buttons?.length) {
@@ -245,7 +252,7 @@ function buildBuilderPage(data, mode = 'v1') {
   return [header, ...rows, row1, row2, row3];
 }
 
-// ===== BLOCKS MENU (with Select Menu) =====
+// ===== BLOCKS MENU =====
 function buildBlocksMenu(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
@@ -290,7 +297,7 @@ function buildBlocksMenu(data) {
   return [container, selectRow, row];
 }
 
-// ===== MANAGE BLOCKS (with Position Select) =====
+// ===== MANAGE BLOCKS =====
 function buildManageBlocksMenu(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
@@ -333,7 +340,7 @@ function buildManageBlocksMenu(data) {
   return [container, selectRow, row];
 }
 
-// ===== BUTTONS MENU (with Select) =====
+// ===== BUTTONS MENU =====
 function buildButtonsMenu(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
