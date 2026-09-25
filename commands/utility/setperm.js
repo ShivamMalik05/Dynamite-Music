@@ -2,387 +2,283 @@ const {
   SlashCommandBuilder,
   PermissionFlagsBits,
   EmbedBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  UserSelectMenuBuilder,
+  RoleSelectMenuBuilder,
+  StringSelectMenuBuilder,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
-const { loadConfig, saveConfig, getDisplayNames } = require('../../utils/permissions');
+const {
+  loadConfig,
+  saveConfig,
+  isBotOwner,
+  getServerConfig,
+  getDisplayNames,
+} = require('../../utils/permissions');
+
+// ===== BUILD V2 PANEL =====
+async function buildPanel(config, guild, client) {
+  const guildId = guild.id;
+  const server = getServerConfig(config, guildId);
+  const global = config.global || {};
+
+  const { users: serverAllowedUsers } = await getDisplayNames(client, guild, server.allowedUserIds || []);
+  const { roles: serverAllowedRoles } = await getDisplayNames(client, guild, [], server.allowedRoleIds || []);
+  const { users: serverBlockedUsers } = await getDisplayNames(client, guild, server.blockedUserIds || []);
+  const { roles: serverBlockedRoles } = await getDisplayNames(client, guild, [], server.blockedRoleIds || []);
+
+  const container = new ContainerBuilder()
+    .setAccentColor(0xFFFFFF)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# ${emojis.shield || '🛡️'} Permission Control\n` +
+        `**Server:** ${guild.name}`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(1).setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## 🌐 Server Settings\n` +
+        `**Whitelist Mode:** ${server.whitelistMode ? '✅ ON' : '❌ OFF'}`
+      )
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## ✅ Allowed Users (${serverAllowedUsers.length})\n` +
+        (serverAllowedUsers.length > 0
+          ? serverAllowedUsers.map(u => `• ${u.name}`).join('\n').slice(0, 800)
+          : '*None*')
+      )
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## ✅ Allowed Roles (${serverAllowedRoles.length})\n` +
+        (serverAllowedRoles.length > 0
+          ? serverAllowedRoles.map(r => `• ${r.name}`).join('\n').slice(0, 800)
+          : '*None*')
+      )
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## 🚫 Blocked Users (${serverBlockedUsers.length})\n` +
+        (serverBlockedUsers.length > 0
+          ? serverBlockedUsers.map(u => `• ${u.name}`).join('\n').slice(0, 800)
+          : '*None*')
+      )
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `## 🚫 Blocked Roles (${serverBlockedRoles.length})\n` +
+        (serverBlockedRoles.length > 0
+          ? serverBlockedRoles.map(r => `• ${r.name}`).join('\n').slice(0, 800)
+          : '*None*')
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(1).setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
+    );
+
+  const row1 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('sp_add_user').setLabel('Allow User').setEmoji('👤').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('sp_add_role').setLabel('Allow Role').setEmoji('🎭').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('sp_remove_user').setLabel('Remove User').setEmoji('➖').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('sp_remove_role').setLabel('Remove Role').setEmoji('➖').setStyle(ButtonStyle.Danger)
+  );
+
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('sp_block_user').setLabel('Block User').setEmoji('🚫').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('sp_block_role').setLabel('Block Role').setEmoji('🚫').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('sp_unblock_user').setLabel('Unblock User').setEmoji('✅').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('sp_unblock_role').setLabel('Unblock Role').setEmoji('✅').setStyle(ButtonStyle.Success)
+  );
+
+  const row3 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('sp_toggle_whitelist').setLabel(server.whitelistMode ? 'Whitelist: ON' : 'Whitelist: OFF').setEmoji('🌐').setStyle(server.whitelistMode ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sp_refresh').setLabel('Refresh').setEmoji('🔄').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('sp_reset').setLabel('Reset').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('sp_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+  );
+
+  return { container, components: [container, row1, row2, row3] };
+}
 
 module.exports = {
   name: 'setperm',
-  description: 'Manage command permissions',
+  description: 'Advanced permission control panel',
   category: 'Utility',
   data: new SlashCommandBuilder()
     .setName('setperm')
-    .setDescription('Manage command permissions')
+    .setDescription('Advanced permission control panel')
     .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
     .addSubcommand(sub =>
-      sub.setName('add')
-        .setDescription('Add a user or role to the allowed list')
-        .addStringOption(opt =>
-          opt.setName('type')
-            .setDescription('Type of target')
-            .setRequired(true)
-            .addChoices(
-              { name: 'User', value: 'user' },
-              { name: 'Role', value: 'role' }
-            ))
-        .addStringOption(opt =>
-          opt.setName('target')
-            .setDescription('User ID or Role ID')
-            .setRequired(true))
-        .addStringOption(opt =>
-          opt.setName('command')
-            .setDescription('Command name (leave empty for global)')
-            .setRequired(false)))
-    .addSubcommand(sub =>
-      sub.setName('remove')
-        .setDescription('Remove a user or role from the allowed list')
-        .addStringOption(opt =>
-          opt.setName('type')
-            .setDescription('Type of target')
-            .setRequired(true)
-            .addChoices(
-              { name: 'User', value: 'user' },
-              { name: 'Role', value: 'role' }
-            ))
-        .addStringOption(opt =>
-          opt.setName('target')
-            .setDescription('User ID or Role ID')
-            .setRequired(true))
-        .addStringOption(opt =>
-          opt.setName('command')
-            .setDescription('Command name (leave empty for global)')
-            .setRequired(false)))
-    .addSubcommand(sub =>
-      sub.setName('block')
-        .setDescription('Block a user or role')
-        .addStringOption(opt =>
-          opt.setName('type')
-            .setDescription('Type of target')
-            .setRequired(true)
-            .addChoices(
-              { name: 'User', value: 'user' },
-              { name: 'Role', value: 'role' }
-            ))
-        .addStringOption(opt =>
-          opt.setName('target')
-            .setDescription('User ID or Role ID')
-            .setRequired(true)))
-    .addSubcommand(sub =>
-      sub.setName('unblock')
-        .setDescription('Unblock a user or role')
-        .addStringOption(opt =>
-          opt.setName('type')
-            .setDescription('Type of target')
-            .setRequired(true)
-            .addChoices(
-              { name: 'User', value: 'user' },
-              { name: 'Role', value: 'role' }
-            ))
-        .addStringOption(opt =>
-          opt.setName('target')
-            .setDescription('User ID or Role ID')
-            .setRequired(true)))
-    .addSubcommand(sub =>
-      sub.setName('whitelist')
-        .setDescription('Toggle whitelist mode')
-        .addStringOption(opt =>
-          opt.setName('mode')
-            .setDescription('On or Off')
-            .setRequired(true)
-            .addChoices(
-              { name: 'On', value: 'on' },
-              { name: 'Off', value: 'off' }
-            )))
-    .addSubcommand(sub =>
       sub.setName('list')
-        .setDescription('View current permissions'))
-    .addSubcommand(sub =>
-      sub.setName('reset')
-        .setDescription('Reset all permissions')),
+        .setDescription('View current permissions')),
 
   async execute(context) {
     if (!context.isChatInputCommand || !context.isChatInputCommand()) {
       return context.reply('Use /setperm (slash command).');
     }
 
-    const sub = context.options.getSubcommand();
     const config = loadConfig();
-    if (!config.global) {
-      config.global = {
+    const panel = await buildPanel(config, context.guild, context.client);
+
+    await context.reply({
+      components: panel.components,
+      flags: 1 << 15 | 1 << 6,
+    });
+  },
+
+  async handleButton(interaction, client) {
+    const config = loadConfig();
+    const guild = interaction.guild;
+    const id = interaction.customId;
+    const server = getServerConfig(config, guild.id);
+
+    // Close
+    if (id === 'sp_close') {
+      await interaction.update({ components: [] });
+      return true;
+    }
+
+    // Refresh
+    if (id === 'sp_refresh') {
+      const panel = await buildPanel(config, guild, client);
+      await interaction.update({ components: panel.components, flags: 1 << 15 });
+      return true;
+    }
+
+    // Toggle whitelist
+    if (id === 'sp_toggle_whitelist') {
+      server.whitelistMode = !server.whitelistMode;
+      saveConfig(config);
+      const panel = await buildPanel(config, guild, client);
+      await interaction.update({ components: panel.components, flags: 1 << 15 });
+      return true;
+    }
+
+    // Reset
+    if (id === 'sp_reset') {
+      config.servers[guild.id] = {
         whitelistMode: false,
         allowedUserIds: [],
         allowedRoleIds: [],
         blockedUserIds: [],
         blockedRoleIds: [],
+        commands: {},
       };
+      saveConfig(config);
+      const panel = await buildPanel(config, guild, client);
+      await interaction.update({ components: panel.components, flags: 1 << 15 });
+      return true;
     }
-    if (!config.commands) config.commands = {};
 
-    const guild = context.guild;
-    const client = context.client;
-    const e = emojis;
+    // ===== SELECT MENUS =====
+    const selectConfigs = {
+      sp_add_user: { type: 'user', action: 'add' },
+      sp_remove_user: { type: 'user', action: 'remove' },
+      sp_block_user: { type: 'user', action: 'block' },
+      sp_unblock_user: { type: 'user', action: 'unblock' },
+      sp_add_role: { type: 'role', action: 'add' },
+      sp_remove_role: { type: 'role', action: 'remove' },
+      sp_block_role: { type: 'role', action: 'block' },
+      sp_unblock_role: { type: 'role', action: 'unblock' },
+    };
 
-    // ===== ADD =====
-    if (sub === 'add') {
-      const type = context.options.getString('type');
-      const target = context.options.getString('target');
-      const command = context.options.getString('command');
-
-      let targetConfig;
-      if (command) {
-        if (!config.commands[command]) {
-          config.commands[command] = {
-            allowedUserIds: [],
-            allowedRoleIds: [],
-            blockedUserIds: [],
-            blockedRoleIds: [],
-          };
-        }
-        targetConfig = config.commands[command];
+    const cfg = selectConfigs[id];
+    if (cfg) {
+      let menu;
+      if (cfg.type === 'user') {
+        menu = new UserSelectMenuBuilder()
+          .setCustomId(`sp_select_${cfg.action}_user`)
+          .setPlaceholder(`Select user to ${cfg.action}`)
+          .setMinValues(1).setMaxValues(1);
       } else {
-        targetConfig = config.global;
+        menu = new RoleSelectMenuBuilder()
+          .setCustomId(`sp_select_${cfg.action}_role`)
+          .setPlaceholder(`Select role to ${cfg.action}`)
+          .setMinValues(1).setMaxValues(1);
       }
+      const row = new ActionRowBuilder().addComponents(menu);
+      await interaction.reply({
+        content: `Select a ${cfg.type} to **${cfg.action}**:`,
+        components: [row],
+        ephemeral: true,
+      });
+      return true;
+    }
 
+    return false;
+  },
+
+  async handleSelect(interaction, client) {
+    const id = interaction.customId;
+    if (!id.startsWith('sp_select_')) return false;
+
+    const parts = id.replace('sp_select_', '').split('_');
+    const action = parts[0];
+    const type = parts[1];
+
+    const config = loadConfig();
+    const guild = interaction.guild;
+    const server = getServerConfig(config, guild.id);
+
+    const selected = interaction.values[0];
+    let targetName = 'Unknown';
+
+    if (type === 'user') {
+      try {
+        const member = await guild.members.fetch(selected);
+        targetName = member.user.tag;
+      } catch {}
+    } else {
+      const role = guild.roles.cache.get(selected);
+      if (role) targetName = role.name;
+    }
+
+    // Apply action
+    if (action === 'add') {
       if (type === 'user') {
-        if (!targetConfig.allowedUserIds) targetConfig.allowedUserIds = [];
-        if (targetConfig.allowedUserIds.includes(target)) {
-          return context.reply({ content: `${e.error} User already allowed.`, ephemeral: true });
-        }
-        targetConfig.allowedUserIds.push(target);
+        if (!server.allowedUserIds.includes(selected)) server.allowedUserIds.push(selected);
+        server.blockedUserIds = server.blockedUserIds.filter(i => i !== selected);
       } else {
-        if (!targetConfig.allowedRoleIds) targetConfig.allowedRoleIds = [];
-        if (targetConfig.allowedRoleIds.includes(target)) {
-          return context.reply({ content: `${e.error} Role already allowed.`, ephemeral: true });
-        }
-        targetConfig.allowedRoleIds.push(target);
+        if (!server.allowedRoleIds.includes(selected)) server.allowedRoleIds.push(selected);
+        server.blockedRoleIds = server.blockedRoleIds.filter(i => i !== selected);
       }
-
-      saveConfig(config);
-
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle(`${e.check} Added`)
-        .setDescription(`Added **${type}** \`${target}\` to allowed list.`)
-        .addFields(
-          { name: 'Scope', value: command ? `Command: \`${command}\`` : 'Global', inline: true }
-        )
-        .setTimestamp();
-
-      return context.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    // ===== REMOVE =====
-    if (sub === 'remove') {
-      const type = context.options.getString('type');
-      const target = context.options.getString('target');
-      const command = context.options.getString('command');
-
-      let targetConfig;
-      if (command) {
-        if (!config.commands[command]) {
-          return context.reply({ content: `${e.error} Command not configured.`, ephemeral: true });
-        }
-        targetConfig = config.commands[command];
-      } else {
-        targetConfig = config.global;
-      }
-
-      let removed = false;
+    } else if (action === 'remove') {
       if (type === 'user') {
-        if (targetConfig.allowedUserIds) {
-          const idx = targetConfig.allowedUserIds.indexOf(target);
-          if (idx > -1) {
-            targetConfig.allowedUserIds.splice(idx, 1);
-            removed = true;
-          }
-        }
+        server.allowedUserIds = server.allowedUserIds.filter(i => i !== selected);
       } else {
-        if (targetConfig.allowedRoleIds) {
-          const idx = targetConfig.allowedRoleIds.indexOf(target);
-          if (idx > -1) {
-            targetConfig.allowedRoleIds.splice(idx, 1);
-            removed = true;
-          }
-        }
+        server.allowedRoleIds = server.allowedRoleIds.filter(i => i !== selected);
       }
-
-      if (!removed) {
-        return context.reply({ content: `${e.error} Not found in allowed list.`, ephemeral: true });
-      }
-
-      saveConfig(config);
-
-      const embed = new EmbedBuilder()
-        .setColor(0xED4245)
-        .setTitle(`${e.cross} Removed`)
-        .setDescription(`Removed **${type}** \`${target}\` from allowed list.`)
-        .addFields(
-          { name: 'Scope', value: command ? `Command: \`${command}\`` : 'Global', inline: true }
-        )
-        .setTimestamp();
-
-      return context.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    // ===== BLOCK =====
-    if (sub === 'block') {
-      const type = context.options.getString('type');
-      const target = context.options.getString('target');
-
+    } else if (action === 'block') {
       if (type === 'user') {
-        if (!config.global.blockedUserIds) config.global.blockedUserIds = [];
-        if (config.global.blockedUserIds.includes(target)) {
-          return context.reply({ content: `${e.error} User already blocked.`, ephemeral: true });
-        }
-        config.global.blockedUserIds.push(target);
+        if (!server.blockedUserIds.includes(selected)) server.blockedUserIds.push(selected);
+        server.allowedUserIds = server.allowedUserIds.filter(i => i !== selected);
       } else {
-        if (!config.global.blockedRoleIds) config.global.blockedRoleIds = [];
-        if (config.global.blockedRoleIds.includes(target)) {
-          return context.reply({ content: `${e.error} Role already blocked.`, ephemeral: true });
-        }
-        config.global.blockedRoleIds.push(target);
+        if (!server.blockedRoleIds.includes(selected)) server.blockedRoleIds.push(selected);
+        server.allowedRoleIds = server.allowedRoleIds.filter(i => i !== selected);
       }
-
-      saveConfig(config);
-
-      const embed = new EmbedBuilder()
-        .setColor(0xED4245)
-        .setTitle(`${e.cross} Blocked`)
-        .setDescription(`Blocked **${type}** \`${target}\`.`)
-        .setTimestamp();
-
-      return context.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    // ===== UNBLOCK =====
-    if (sub === 'unblock') {
-      const type = context.options.getString('type');
-      const target = context.options.getString('target');
-
-      let removed = false;
+    } else if (action === 'unblock') {
       if (type === 'user') {
-        if (config.global.blockedUserIds) {
-          const idx = config.global.blockedUserIds.indexOf(target);
-          if (idx > -1) {
-            config.global.blockedUserIds.splice(idx, 1);
-            removed = true;
-          }
-        }
+        server.blockedUserIds = server.blockedUserIds.filter(i => i !== selected);
       } else {
-        if (config.global.blockedRoleIds) {
-          const idx = config.global.blockedRoleIds.indexOf(target);
-          if (idx > -1) {
-            config.global.blockedRoleIds.splice(idx, 1);
-            removed = true;
-          }
-        }
+        server.blockedRoleIds = server.blockedRoleIds.filter(i => i !== selected);
       }
-
-      if (!removed) {
-        return context.reply({ content: `${e.error} Not found in blocked list.`, ephemeral: true });
-      }
-
-      saveConfig(config);
-
-      const embed = new EmbedBuilder()
-        .setColor(0x57F287)
-        .setTitle(`${e.check} Unblocked`)
-        .setDescription(`Unblocked **${type}** \`${target}\`.`)
-        .setTimestamp();
-
-      return context.reply({ embeds: [embed], ephemeral: true });
     }
 
-    // ===== WHITELIST =====
-    if (sub === 'whitelist') {
-      const mode = context.options.getString('mode');
-      config.global.whitelistMode = mode === 'on';
-      saveConfig(config);
+    saveConfig(config);
 
-      const embed = new EmbedBuilder()
-        .setColor(config.global.whitelistMode ? 0x57F287 : 0xED4245)
-        .setTitle(`${e.shield} Whitelist Mode`)
-        .setDescription(`Whitelist mode is now **${config.global.whitelistMode ? 'ON' : 'OFF'}**.`)
-        .setTimestamp();
-
-      return context.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    // ===== LIST =====
-    if (sub === 'list') {
-      const { users: allowedUsers } = await getDisplayNames(client, guild, config.global.allowedUserIds || []);
-      const { roles: allowedRoles } = await getDisplayNames(client, guild, [], config.global.allowedRoleIds || []);
-      const { users: blockedUsers } = await getDisplayNames(client, guild, config.global.blockedUserIds || []);
-      const { roles: blockedRoles } = await getDisplayNames(client, guild, [], config.global.blockedRoleIds || []);
-
-      const embed = new EmbedBuilder()
-        .setColor(0xFFFFFF)
-        .setTitle(`${e.list} Current Permissions`)
-        .setDescription(
-          `**Whitelist Mode:** ${config.global.whitelistMode ? '✅ ON' : '❌ OFF'}`
-        )
-        .addFields(
-          {
-            name: `${e.check} Allowed Users (${allowedUsers.length})`,
-            value: allowedUsers.length > 0
-              ? allowedUsers.map(u => `• ${u.name}`).join('\n').slice(0, 1024)
-              : '*None*',
-            inline: true
-          },
-          {
-            name: `${e.check} Allowed Roles (${allowedRoles.length})`,
-            value: allowedRoles.length > 0
-              ? allowedRoles.map(r => `• ${r.name}`).join('\n').slice(0, 1024)
-              : '*None*',
-            inline: true
-          },
-          {
-            name: `${e.cross} Blocked Users (${blockedUsers.length})`,
-            value: blockedUsers.length > 0
-              ? blockedUsers.map(u => `• ${u.name}`).join('\n').slice(0, 1024)
-              : '*None*',
-            inline: true
-          },
-          {
-            name: `${e.cross} Blocked Roles (${blockedRoles.length})`,
-            value: blockedRoles.length > 0
-              ? blockedRoles.map(r => `• ${r.name}`).join('\n').slice(0, 1024)
-              : '*None*',
-            inline: true
-          },
-          {
-            name: '📋 Per-Command',
-            value: Object.keys(config.commands).length > 0
-              ? Object.keys(config.commands).map(c => `• \`${c}\``).join('\n').slice(0, 1024)
-              : '*None*',
-            inline: false
-          }
-        )
-        .setTimestamp()
-        .setFooter({ text: 'Powered by Dynamite Music' });
-
-      return context.reply({ embeds: [embed], ephemeral: true });
-    }
-
-    // ===== RESET =====
-    if (sub === 'reset') {
-      config.global = {
-        whitelistMode: false,
-        allowedUserIds: [],
-        allowedRoleIds: [],
-        blockedUserIds: [],
-        blockedRoleIds: [],
-      };
-      config.commands = {};
-      saveConfig(config);
-
-      const embed = new EmbedBuilder()
-        .setColor(0xED4245)
-        .setTitle(`${e.cross} Reset`)
-        .setDescription('All permissions have been reset.')
-        .setTimestamp();
-
-      return context.reply({ embeds: [embed], ephemeral: true });
-    }
+    await interaction.update({
+      content: `✅ **${action}** ${type}: **${targetName}**`,
+      components: [],
+    });
+    return true;
   },
 };
