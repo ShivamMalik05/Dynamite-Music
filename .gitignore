@@ -20,4 +20,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
+
+# Runtime data
 data/warnings.json
