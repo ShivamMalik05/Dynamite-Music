@@ -35,48 +35,26 @@ function makeSep() {
 }
 
 async function sendLog(client, type, data) {
-  console.log(`[sendLog] Called — type: ${type}, title: ${data.title}`);
-  
   try {
     const config = loadConfig();
-    if (!config) {
-      console.error('[sendLog] Config not loaded');
-      return;
-    }
-    console.log(`[sendLog] Config loaded`);
+    if (!config) return;
 
-    if (!config.enabled[type]) {
-      console.log(`[sendLog] Type "${type}" is disabled`);
-      return;
-    }
+    if (!config.enabled[type]) return;
 
     const channelId = config.channels[type];
-    console.log(`[sendLog] Channel ID for "${type}": ${channelId}`);
+    if (!channelId) return;
 
-    if (!channelId) {
-      console.error(`[sendLog] No channel set for type: ${type}`);
-      return;
-    }
-
-    // Try cache first
+    // Try cache, then fetch
     let channel = client.channels.cache.get(channelId);
-    console.log(`[sendLog] Channel from cache: ${channel ? `#${channel.name}` : 'NOT FOUND'}`);
-
-    // If not in cache, fetch it
     if (!channel) {
-      channel = await client.channels.fetch(channelId).catch((err) => {
-        console.error(`[sendLog] Fetch failed for ${channelId}:`, err.message);
-        return null;
-      });
-      console.log(`[sendLog] Channel after fetch: ${channel ? `#${channel.name}` : 'STILL NULL'}`);
+      channel = await client.channels.fetch(channelId).catch(() => null);
     }
 
     if (!channel) {
-      console.error(`[sendLog] Channel not found: ${channelId}`);
+      console.error(`[logger] Channel not found: ${channelId}`);
       return;
     }
 
-    // Build container
     const container = new ContainerBuilder()
       .setAccentColor(data.color || config.colors[type] || 0xFFFFFF)
       .addTextDisplayComponents(
@@ -102,12 +80,9 @@ async function sendLog(client, type, data) {
       )
     );
 
-    console.log(`[sendLog] Sending to #${channel.name}...`);
-    const msg = await channel.send({ components: [container], flags: 1 << 15 });
-    console.log(`[sendLog] ✅ Message sent! ID: ${msg.id}`);
+    await channel.send({ components: [container], flags: 1 << 15 });
   } catch (error) {
-    console.error(`[sendLog] ❌ Error:`, error.message);
-    console.error(error.stack);
+    console.error(`[logger] Error sending ${type} log:`, error.message);
   }
 }
 
