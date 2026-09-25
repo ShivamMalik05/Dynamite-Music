@@ -28,6 +28,10 @@ module.exports = {
         if (embedbuilder.isEmbedButton(interaction.customId)) return await embedbuilder.handleButton(interaction, client);
       }
 
+      if (interaction.isStringSelectMenu()) {
+        if (embedbuilder.isEmbedSelect(interaction.customId)) return await embedbuilder.handleSelect(interaction, client);
+      }
+
       if (interaction.isChannelSelectMenu()) {
         if (setlog.isSetlogChannel(interaction.customId)) return await setlog.handleChannelSelect(interaction);
       }
