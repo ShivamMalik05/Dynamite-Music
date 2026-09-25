@@ -40,7 +40,6 @@ module.exports = {
       if (interaction.customId.startsWith('setlog_')) {
         const type = interaction.customId.replace('setlog_', '');
         const validTypes = ['moderation', 'messages', 'members', 'channels', 'roles', 'voice', 'server'];
-
         if (!validTypes.includes(type)) return;
 
         const selectMenu = new ChannelSelectMenuBuilder()
