@@ -12,7 +12,7 @@ const {
   ButtonStyle,
 } = require('discord.js');
 
-// ===== SAFE BUILDERS (undefined se bachne ke liye) =====
+// ===== SAFE BUILDERS =====
 function safeSeparator() {
   try {
     return new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true);
@@ -147,14 +147,14 @@ function buildEmbedFromBlocks(data, forSend = true) {
   return rows;
 }
 
-// ===== START PAGE (pehla view) =====
+// ===== START PAGE =====
 function buildStartPage() {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# 🎨 Ultimate Embed Builder\n` +
-        `**Create beautiful embeds — Discord par aaj tak jo nahi bana**`
+        `**Create beautiful embeds — unlike anything else on Discord**`
       )
     )
     .addSeparatorComponents(safeSeparator())
@@ -163,12 +163,12 @@ function buildStartPage() {
         `**Features:**\n` +
         `📋 **V1 Builder** — Classic embed (title, desc, fields, author, footer)\n` +
         `✨ **V2 Builder** — Components V2 (blocks, sections, separators, media)\n` +
-        `✏️ **Edit Existing** — Channel ID + Message ID se purana embed edit karo\n` +
-        `📤 **Re-send** — Edited embed ko dobara bhejo\n` +
+        `✏️ **Edit Existing** — Edit old embeds via channel ID + message ID\n` +
+        `📤 **Re-send** — Send edited embeds again\n` +
         `🎭 **Role Buttons** — Add/Remove/Toggle role buttons\n` +
         `🔗 **Link Buttons** — Custom link buttons\n` +
-        `📜 **History** — Saare edits track karo\n` +
-        `💾 **Export/Import JSON** — Apna embed save aur load karo\n\n` +
+        `📜 **History** — Track all edits\n` +
+        `💾 **Export/Import JSON** — Save and load your embeds\n\n` +
         `*Choose an option below to begin.*`
       )
     )
@@ -192,7 +192,7 @@ function buildStartPage() {
   return [container, row1, row2];
 }
 
-// ===== BUILDER PAGE (V1 ya V2) =====
+// ===== BUILDER PAGE =====
 function buildBuilderPage(data, mode = 'v1') {
   const isV2 = mode === 'v2';
   const rows = buildEmbedFromBlocks(data);
@@ -376,7 +376,7 @@ function buildStyleMenu(data) {
   return [container, row1, row2, row3];
 }
 
-// ===== HISTORY =====
+// ===== HISTORY PANEL =====
 function buildHistoryPanel(data) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
@@ -405,7 +405,7 @@ function buildHistoryPanel(data) {
   return [container, row];
 }
 
-// ===== HELP =====
+// ===== HELP PAGE =====
 function buildHelpPage() {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
@@ -425,7 +425,7 @@ function buildHelpPage() {
         `Link buttons, role buttons (add/remove/toggle)\n\n` +
         `**5. Send or Edit**\n` +
         `Send to current channel, specific channel, or edit existing message\n\n` +
-        `**💡 Pro Tip:**\n` +
+        `**Pro Tip:**\n` +
         `Use Export JSON to save your embed and Import JSON to load it later.`
       )
     )
