@@ -82,7 +82,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // Back to builder
+  // Navigation
   if (id === 'eb_back_builder') {
     await interaction.update({ components: buildBuilderPage(data, data.mode), flags: 1 << 15 | 1 << 6 });
     return true;
@@ -92,7 +92,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // Sub-menus
+  // Menus
   if (id === 'eb_blocks') { await interaction.update({ components: buildBlocksMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_manage_blocks') { await interaction.update({ components: buildManageBlocksMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_buttons') { await interaction.update({ components: buildButtonsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
@@ -114,17 +114,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // Colors
-  const colors = {
-    eb_color_white: 0xFFFFFF, eb_color_blue: 0x5865F2, eb_color_red: 0xED4245,
-    eb_color_green: 0x57F287, eb_color_purple: 0x9B59B6, eb_color_pink: 0xEB459E,
-    eb_color_yellow: 0xFEE75C,
-  };
-  if (colors[id]) {
-    data.color = colors[id];
-    await interaction.update({ components: buildStyleMenu(data), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
+  // Custom color
   if (id === 'eb_color_custom') {
     const modal = new ModalBuilder().setCustomId('modal_color').setTitle('Custom Color');
     modal.addComponents(new ActionRowBuilder().addComponents(
@@ -177,7 +167,7 @@ async function handleButton(interaction, client) {
     };
     const json = JSON.stringify(exportData);
     if (json.length > 1900) {
-      await interaction.reply({ content: `JSON too long. Use \`/embedbuilder\` to export manually.`, ephemeral: true });
+      await interaction.reply({ content: 'JSON too long. Try removing some blocks.', ephemeral: true });
     } else {
       await interaction.reply({ content: `\`\`\`json\n${json}\n\`\`\``, ephemeral: true });
     }
@@ -200,4 +190,98 @@ async function handleButton(interaction, client) {
   return false;
 }
 
-module.exports = { handleButton };
+// ===== HANDLE SELECT MENUS =====
+async function handleSelect(interaction, client) {
+  const id = interaction.customId;
+  const data = getData(client, interaction.user.id);
+  const value = interaction.values[0];
+
+  // Block select
+  if (id === 'eb_block_select') {
+    const map = {
+      title: 'eb_add_block_title',
+      text: 'eb_add_block_text',
+      separator: 'eb_add_block_separator',
+      thumbnail: 'eb_add_block_thumbnail',
+      image: 'eb_add_block_image',
+      author: 'eb_add_block_author',
+      field: 'eb_add_block_field',
+      section: 'eb_add_block_section',
+    };
+    const cfg = MODAL_CONFIGS[map[value]];
+    if (cfg) {
+      const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
+      for (const f of cfg.fields) {
+        modal.addComponents(new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId(f.id).setLabel(f.label).setStyle(f.style).setRequired(f.required)
+        ));
+      }
+      await interaction.showModal(modal);
+    }
+    return true;
+  }
+
+  // Button select
+  if (id === 'eb_button_select') {
+    const map = {
+      link: 'eb_add_button',
+      role_add: 'eb_add_role',
+      role_remove: 'eb_remove_role',
+      role_toggle: 'eb_toggle_role',
+    };
+    const cfg = MODAL_CONFIGS[map[value]];
+    if (cfg) {
+      const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
+      for (const f of cfg.fields) {
+        modal.addComponents(new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId(f.id).setLabel(f.label).setStyle(f.style).setRequired(f.required)
+        ));
+      }
+      await interaction.showModal(modal);
+    }
+    return true;
+  }
+
+  // Color select
+  if (id === 'eb_color_select') {
+    data.color = parseInt(value, 16);
+    await interaction.update({ components: buildStyleMenu(data), flags: 1 << 15 | 1 << 6 });
+    return true;
+  }
+
+  // Manage select
+  if (id === 'eb_manage_select') {
+    if (value === 'move' || value === 'delete') {
+      const modal = new ModalBuilder()
+        .setCustomId(value === 'move' ? 'modal_move' : 'modal_delete_block')
+        .setTitle(value === 'move' ? 'Move Block' : 'Delete Block');
+
+      if (value === 'move') {
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('from').setLabel('From position').setStyle(TextInputStyle.Short).setRequired(true)
+          ),
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('to').setLabel('To position').setStyle(TextInputStyle.Short).setRequired(true)
+          )
+        );
+      } else {
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(
+            new TextInputBuilder().setCustomId('index').setLabel('Block position').setStyle(TextInputStyle.Short).setRequired(true)
+          )
+        );
+      }
+      await interaction.showModal(modal);
+    } else if (value === 'swap') {
+      const modal = new ModalBuilder().setCustomId('modal_swap').setTitle('Swap Blocks');
+      modal.addComponents(
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('pos1').setLabel('First position').setStyle(TextInputStyle.Short).setRequired(true)
+        ),
+        new ActionRowBuilder().addComponents(
+          new TextInputBuilder().setCustomId('pos2').setLabel('Second position').setStyle(TextInputStyle.Short).setRequired(true)
+        )
+      );
+      await interaction.showModal(modal);
+   
