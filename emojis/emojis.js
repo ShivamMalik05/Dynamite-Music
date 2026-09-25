@@ -1,39 +1,25 @@
-module.exports = {
-  // General
-  success: '✅',
-  error: '❌',
-  warning: '⚠️',
-  info: 'ℹ️',
-  loading: '⏳',
+// ============================================
+// EMOJIS — Smart Version
+// This file reads from config/emojis.js
+// Old commands using `emojis.error` still work!
+// ============================================
 
-  // Moderation
-  ban: '<:Admin:1551907926875054080>',
-  kick: '👢',
-  mute: '🔇',
-  warn: '⚠️',
-  purge: '🗑️',
+const config = require('../config/emojis');
 
-  // Utility
-  ping: '🏓',
-  user: '👤',
-  server: '🏠',
-  time: '⏰',
+// Flatten config into single object for old commands
+const flat = {};
 
-  // Fun
-  smile: '😄',
-  heart: '❤️',
-  star: '⭐',
-  fire: '🔥',
-  party: '🎉',
+for (const category of Object.keys(config)) {
+  for (const key of Object.keys(config[category])) {
+    flat[key] = config[category][key];
+  }
+}
 
-  // Arrows
-  arrowRight: '<:arrow:1549674333121548389>',
-  arrowLeft: '⬅️',
-  check: '✔️',
-  cross: '✖️',
+// Aliases (for backward compatibility)
+flat.arrowRight = config.general.arrow;
+flat.arrowLeft = config.general.back;
+flat.close = config.general.close;
+flat.refresh = config.embed.refresh || '🔄';
 
-  // Stats
-  chart: '📊',
-  close: '❌',
-  refresh: '🔄',
-};
+// Export flat object (old commands use `emojis.error` etc.)
+module.exports = flat;
