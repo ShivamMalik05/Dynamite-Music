@@ -8,7 +8,6 @@ const {
 const emojis = require('../../emojis/emojis');
 const {
   buildFront,
-  buildMain,
   buildContentMenu,
   buildMediaMenu,
   buildFieldsMenu,
@@ -18,10 +17,16 @@ const {
 } = require('./menus');
 const { MODAL_CONFIGS } = require('./modals');
 
-// Helper: saare panels — live preview + control panel
-function buildEverything(data) {
-  const livePreview = buildLivePreview(data, data.mode);
-  return livePreview;
+// Helper: history add karo
+function addHistory(data, field, value) {
+  if (!data.history) data.history = [];
+  data.history.push({
+    field,
+    value: value.length > 50 ? value.slice(0, 50) + '...' : value,
+    time: new Date().toLocaleTimeString(),
+  });
+  // Max 20 history rakho
+  if (data.history.length > 20) data.history.shift();
 }
 
 async function handleButton(interaction, client) {
@@ -32,7 +37,7 @@ async function handleButton(interaction, client) {
     client.embedBuilders.set(interaction.user.id, {
       title: null, description: null, color: null, author: null, authorIcon: null,
       thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
-      mode: 'v1', ephemeral: true,
+      mode: 'v1', ephemeral: true, history: [],
     });
   }
   const data = client.embedBuilders.get(interaction.user.id);
@@ -44,12 +49,7 @@ async function handleButton(interaction, client) {
   }
   if (id === 'eb_toggle_ephemeral') {
     data.ephemeral = !data.ephemeral;
-    // Update current view
-    if (interaction.message.components.length === 2 && interaction.message.components[0].components[1]?.components?.some(b => b.custom_id === 'eb_open_v1')) {
-      await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
-    } else {
-      await interaction.update({ components: buildMain(data, data.mode), flags: 1 << 15 | 1 << 6 });
-    }
+    await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
     return true;
   }
   if (id === 'eb_back') {
@@ -58,16 +58,12 @@ async function handleButton(interaction, client) {
   }
   if (id === 'eb_open_v1') {
     data.mode = 'v1';
-    await interaction.update({ components: buildMain(data, 'v1'), flags: 1 << 15 | 1 << 6 });
+    await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
     return true;
   }
   if (id === 'eb_open_v2') {
     data.mode = 'v2';
-    await interaction.update({ components: buildMain(data, 'v2'), flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
-  if (id === 'eb_main') {
-    await interaction.update({ components: buildMain(data, data.mode), flags: 1 << 15 | 1 << 6 });
+    await interaction.update({ components: buildFront(data), flags: 1 << 15 | 1 << 6 });
     return true;
   }
   if (id === 'eb_reset') {
@@ -76,9 +72,9 @@ async function handleButton(interaction, client) {
     client.embedBuilders.set(interaction.user.id, {
       title: null, description: null, color: null, author: null, authorIcon: null,
       thumbnail: null, image: null, footer: null, fields: [], buttons: [], sections: [],
-      mode, ephemeral,
+      mode, ephemeral, history: [],
     });
-    await interaction.update({ components: buildMain(client.embedBuilders.get(interaction.user.id), mode), flags: 1 << 15 | 1 << 6 });
+    await interaction.update({ components: buildFront(client.embedBuilders.get(interaction.user.id)), flags: 1 << 15 | 1 << 6 });
     return true;
   }
 
@@ -91,21 +87,8 @@ async function handleButton(interaction, client) {
   if (id === 'eb_clear_sections') { data.sections = []; await interaction.update({ components: buildSectionsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
   if (id === 'eb_clear_fields') { data.fields = []; await interaction.update({ components: buildFieldsMenu(data), flags: 1 << 15 | 1 << 6 }); return true; }
 
-  // ===== PREVIEW =====
+  // Send
   if (id === 'eb_preview') {
-    // Show preview + action buttons
-    const preview = buildLivePreview(data, data.mode);
-    const actionRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder().setCustomId('eb_send').setLabel('Send').setEmoji('📤').setStyle(ButtonStyle.Success),
-      new ButtonBuilder().setCustomId('eb_send_channel').setLabel('Send to Channel').setEmoji('📨').setStyle(ButtonStyle.Primary),
-      new ButtonBuilder().setCustomId('eb_main').setLabel('Back to Editor').setEmoji('⬅️').setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder().setCustomId('embed_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
-    );
-    await interaction.update({ components: [...preview, actionRow], flags: 1 << 15 | 1 << 6 });
-    return true;
-  }
-
-  if (id === 'eb_send') {
     try {
       const preview = buildLivePreview(data, data.mode);
       await interaction.channel.send({ components: preview, flags: 1 << 15 });
@@ -126,7 +109,6 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // Modal openers
   const cfg = MODAL_CONFIGS[id];
   if (cfg) {
     const modal = new ModalBuilder().setCustomId(cfg.id).setTitle(cfg.title);
@@ -149,36 +131,41 @@ async function handleModal(interaction, client) {
   try {
     const id = interaction.customId;
 
-    if (id === 'modal_eb_title') data.title = interaction.fields.getTextInputValue('title');
-    else if (id === 'modal_eb_desc') data.description = interaction.fields.getTextInputValue('description');
+    if (id === 'modal_eb_title') { data.title = interaction.fields.getTextInputValue('title'); addHistory(data, 'Title', data.title); }
+    else if (id === 'modal_eb_desc') { data.description = interaction.fields.getTextInputValue('description'); addHistory(data, 'Description', data.description); }
     else if (id === 'modal_eb_color') {
       const c = interaction.fields.getTextInputValue('color');
       data.color = c.startsWith('#') ? parseInt(c.slice(1), 16) : (data.mode === 'v2' ? 0x9B59B6 : 0x5865F2);
+      addHistory(data, 'Color', c);
     }
     else if (id === 'modal_eb_author') {
       data.author = interaction.fields.getTextInputValue('author');
       data.authorIcon = interaction.fields.getTextInputValue('author_icon') || null;
+      addHistory(data, 'Author', data.author);
     }
-    else if (id === 'modal_eb_thumb') data.thumbnail = interaction.fields.getTextInputValue('thumbnail');
-    else if (id === 'modal_eb_image') data.image = interaction.fields.getTextInputValue('image');
-    else if (id === 'modal_eb_footer') data.footer = interaction.fields.getTextInputValue('footer');
+    else if (id === 'modal_eb_thumb') { data.thumbnail = interaction.fields.getTextInputValue('thumbnail'); addHistory(data, 'Thumbnail', '✅ Set'); }
+    else if (id === 'modal_eb_image') { data.image = interaction.fields.getTextInputValue('image'); addHistory(data, 'Image', '✅ Set'); }
+    else if (id === 'modal_eb_footer') { data.footer = interaction.fields.getTextInputValue('footer'); addHistory(data, 'Footer', data.footer); }
     else if (id === 'modal_eb_field') {
       data.fields.push({
         name: interaction.fields.getTextInputValue('field_name'),
         value: interaction.fields.getTextInputValue('field_value'),
       });
+      addHistory(data, 'Field Added', data.fields[data.fields.length - 1].name);
     }
     else if (id === 'modal_eb_btn') {
       data.buttons.push({
         label: interaction.fields.getTextInputValue('btn_label'),
         url: interaction.fields.getTextInputValue('btn_url'),
       });
+      addHistory(data, 'Button Added', data.buttons[data.buttons.length - 1].label);
     }
     else if (id === 'modal_eb_section') {
       data.sections.push({
         text: interaction.fields.getTextInputValue('section_text'),
         thumbnail: interaction.fields.getTextInputValue('section_thumb') || null,
       });
+      addHistory(data, 'Section Added', '✅');
     }
     else if (id === 'modal_eb_send') {
       const channelId = interaction.fields.getTextInputValue('target_channel');
@@ -190,9 +177,9 @@ async function handleModal(interaction, client) {
       return interaction.reply({ content: `${emojis.success} Sent to ${channel}.`, ephemeral: true });
     }
 
-    // ===== HAR EDIT KE BAAD LIVE PREVIEW UPDATE KARO =====
+    // ===== HAR EDIT KE BAAD LIVE PREVIEW UPDATE =====
     await interaction.update({
-      components: buildMain(data, data.mode),
+      components: buildFront(data),
       flags: 1 << 15 | 1 << 6,
     });
   } catch (error) {
