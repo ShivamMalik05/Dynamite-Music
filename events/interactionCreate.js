@@ -27,11 +27,9 @@ module.exports = {
         if (setlog.isSetlogButton(interaction.customId)) return await setlog.handleButton(interaction);
         if (embedbuilder.isEmbedButton(interaction.customId)) return await embedbuilder.handleButton(interaction, client);
 
-        if (interaction.customId.startsWith('perm_')) {
+        if (interaction.customId.startsWith('sp_')) {
           const setperm = client.slashCommands.get('setperm');
-          if (setperm && setperm.handleButton) {
-            return await setperm.handleButton(interaction, client);
-          }
+          if (setperm && setperm.handleButton) return await setperm.handleButton(interaction, client);
         }
       }
 
@@ -40,19 +38,19 @@ module.exports = {
         if (embedbuilder.isEmbedSelect(interaction.customId)) return await embedbuilder.handleSelect(interaction, client);
       }
 
+      if (interaction.isUserSelectMenu() || interaction.isRoleSelectMenu()) {
+        if (interaction.customId.startsWith('sp_select_')) {
+          const setperm = client.slashCommands.get('setperm');
+          if (setperm && setperm.handleSelect) return await setperm.handleSelect(interaction, client);
+        }
+      }
+
       if (interaction.isChannelSelectMenu()) {
         if (setlog.isSetlogChannel(interaction.customId)) return await setlog.handleChannelSelect(interaction);
       }
 
       if (interaction.isModalSubmit()) {
         if (embedbuilder.isEmbedModal(interaction.customId)) return await embedbuilder.handleModal(interaction, client);
-
-        if (interaction.customId.startsWith('modal_perm_')) {
-          const setperm = client.slashCommands.get('setperm');
-          if (setperm && setperm.handleModal) {
-            return await setperm.handleModal(interaction, client);
-          }
-        }
       }
     } catch (error) {
       console.error('Interaction error:', error);
