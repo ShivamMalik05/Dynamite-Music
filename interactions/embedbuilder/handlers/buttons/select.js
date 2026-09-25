@@ -5,7 +5,7 @@ const {
   ActionRowBuilder,
 } = require('discord.js');
 const { buildStyleMenu } = require('../../core');
-const { MODAL_CONFIGS } = require('../modals');
+const { MODAL_CONFIGS } = require('../modals/index');
 const { getData } = require('./navigation');
 
 async function handleSelect(interaction, client) {
