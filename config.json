@@ -1,0 +1,24 @@
+{
+  "prefix": "!",
+  "logChannels": {
+    "moderation": "",
+    "messages": "",
+    "members": "",
+    "channels": "",
+    "roles": "",
+    "voice": "",
+    "server": ""
+  },
+  "logging": {
+    "moderation": true,
+    "messages": true,
+    "members": true,
+    "channels": true,
+    "roles": true,
+    "voice": true,
+    "server": true
+  },
+  "ignoredChannels": [],
+  "ignoredRoles": [],
+  "ignoredUsers": []
+}
