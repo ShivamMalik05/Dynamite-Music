@@ -1,21 +1,26 @@
-const emojis = require('../../emojis/emojis');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
   name: 'unlock',
   description: 'Unlock a channel',
-  async execute(message) {
-    if (!message.member.permissions.has('ManageChannels')) {
-      return message.reply(`${emojis.error} You do not have permission!`);
+  data: new SlashCommandBuilder()
+    .setName('unlock')
+    .setDescription('Unlock a channel')
+    .setDefaultMemberPermissions(PermissionFlagsBits.ManageChannels),
+
+  async execute(context) {
+    if (!context.isChatInputCommand?.() && !context.member.permissions.has('ManageChannels')) {
+      return context.reply('You do not have permission!');
     }
 
-    try {
-      await message.channel.permissionOverwrites.edit(message.guild.roles.everyone, {
-        SendMessages: null,
-      });
-      message.reply(`${emojis.success} Channel unlocked.`);
-    } catch (error) {
-      console.error(error);
-      message.reply(`${emojis.error} Failed to unlock channel.`);
+    await context.channel.permissionOverwrites.edit(context.guild.roles.everyone, {
+      SendMessages: null,
+    });
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      await context.reply('Channel unlocked.');
+    } else {
+      context.reply('Channel unlocked.');
     }
   },
 };
