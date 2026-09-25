@@ -1,125 +1,86 @@
+const fs = require('fs');
+const path = require('path');
 const {
-  SlashCommandBuilder,
-  PermissionFlagsBits,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
 } = require('discord.js');
-const { loadConfig } = require('../../utils/logger');
-const emojis = require('../../emojis/emojis');
 
-const LOG_TYPES = [
-  { id: 'moderation', label: 'Moderation', emoji: '🔨', color: 0xED4245, style: ButtonStyle.Danger },
-  { id: 'messages', label: 'Messages', emoji: '💬', color: 0xFEE75C, style: ButtonStyle.Primary },
-  { id: 'members', label: 'Members', emoji: '👥', color: 0x57F287, style: ButtonStyle.Success },
-  { id: 'channels', label: 'Channels', emoji: '📢', color: 0x5865F2, style: ButtonStyle.Primary },
-  { id: 'roles', label: 'Roles', emoji: '🎭', color: 0xEB459E, style: ButtonStyle.Secondary },
-  { id: 'voice', label: 'Voice', emoji: '🔊', color: 0x1ABC9C, style: ButtonStyle.Success },
-  { id: 'server', label: 'Server', emoji: '🏠', color: 0x9B59B6, style: ButtonStyle.Secondary },
-];
+const configPath = path.join(__dirname, '..', 'config', 'logs.js');
 
-function buildMainPanel(config) {
-  const container = new ContainerBuilder()
-    .setAccentColor(0xFFFFFF)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${emojis.star} Log Setup Panel\n` +
-        `**Configure where each type of log goes**\n` +
-        `*Click a button below to set the channel for that log type.*`
-      )
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-    );
-
-  for (const type of LOG_TYPES) {
-    const channelId = config.logChannels[type.id];
-    const channelText = channelId ? `<#${channelId}>` : '*Not set*';
-    const status = config.logging[type.id] ? `${emojis.success} Enabled` : `${emojis.error} Disabled`;
-
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `${type.emoji} **${type.label}**\n` +
-        `${emojis.arrowRight} Channel: ${channelText}\n` +
-        `${emojis.arrowRight} Status: ${status}`
-      )
-    );
+function loadConfig() {
+  try {
+    delete require.cache[require.resolve(configPath)];
+    return require(configPath);
+  } catch (err) {
+    console.error('Failed to load logs config:', err.message);
+    return null;
   }
-
-  container.addSeparatorComponents(
-    new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
-  );
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(
-      `*Powered by Dynamite Music*`
-    )
-  );
-
-  return container;
 }
 
-function buildButtons() {
-  const row1 = new ActionRowBuilder().addComponents(
-    LOG_TYPES.slice(0, 4).map(type =>
-      new ButtonBuilder()
-        .setCustomId(`setlog_${type.id}`)
-        .setLabel(type.label)
-        .setEmoji(type.emoji)
-        .setStyle(type.style)
-    )
-  );
-
-  const row2 = new ActionRowBuilder().addComponents(
-    LOG_TYPES.slice(4).map(type =>
-      new ButtonBuilder()
-        .setCustomId(`setlog_${type.id}`)
-        .setLabel(type.label)
-        .setEmoji(type.emoji)
-        .setStyle(type.style)
-    )
-  );
-
-  const row3 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder()
-      .setCustomId('setlog_toggle')
-      .setLabel('Toggle All')
-      .setEmoji('🔄')
-      .setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId('setlog_reset')
-      .setLabel('Reset All')
-      .setEmoji('🗑️')
-      .setStyle(ButtonStyle.Danger)
-  );
-
-  return [row1, row2, row3];
+function saveConfig(config) {
+  const content = `module.exports = ${JSON.stringify(config, null, 2)};\n`;
+  fs.writeFileSync(configPath, content);
 }
 
-module.exports = {
-  name: 'setlog',
-  description: 'Setup log channels with buttons',
-  category: 'Utility',
-  data: new SlashCommandBuilder()
-    .setName('setlog')
-    .setDescription('Setup log channels with buttons')
-    .setDefaultMemberPermissions(PermissionFlagsBits.Administrator),
+async function sendLog(client, type, data) {
+  try {
+    const config = loadConfig();
+    if (!config) return;
 
-  async execute(context) {
-    if (!context.isChatInputCommand || !context.isChatInputCommand()) {
-      return context.reply('Please use `/setlog` (slash command) for the interactive panel.');
+    if (!config.enabled[type]) return;
+
+    const channelId = config.channels[type];
+    if (!channelId) return;
+
+    const channel = client.channels.cache.get(channelId);
+    if (!channel) {
+      console.error(`Log channel not found for ${type}: ${channelId}`);
+      return;
     }
 
-    const config = loadConfig();
-    const container = buildMainPanel(config);
-    const buttons = buildButtons();
+    const container = new ContainerBuilder()
+      .setAccentColor(data.color || config.colors[type] || 0xFFFFFF)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `# ${data.emoji || '📋'} ${data.title}\n` +
+          `**${data.subtitle || 'Log Event'}**`
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+      );
 
-    await context.reply({
-      components: [container, ...buttons],
-      flags: 1 << 15,
-    });
-  },
-};
+    for (const field of data.fields || []) {
+      container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `**${field.name}**\n${field.value}`
+        )
+      );
+    }
+
+    container.addSeparatorComponents(
+      new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true)
+    );
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `*Powered by ${client.user.username} • <t:${Math.floor(Date.now() / 1000)}:R>*`
+      )
+    );
+
+    await channel.send({ components: [container], flags: 1 << 15 });
+  } catch (error) {
+    console.error(`Failed to send log to ${type}:`, error.message);
+  }
+}
+
+function isIgnored(config, { channelId, roleIds, userId }) {
+  if (!config) return false;
+  if (channelId && config.ignoredChannels.includes(channelId)) return true;
+  if (userId && config.ignoredUsers.includes(userId)) return true;
+  if (roleIds && roleIds.some(r => config.ignoredRoles.includes(r))) return true;
+  return false;
+}
+
+module.exports = { sendLog, loadConfig, saveConfig, isIgnored };
