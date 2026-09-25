@@ -18,35 +18,60 @@ function saveConfig(config) {
   fs.writeFileSync(configPath, content);
 }
 
-function canUseCommand(member, commandName) {
+function canUseCommand(member, commandName, channelId = null) {
   const config = loadConfig();
   if (!config) return true;
 
+  // Admins always allowed
   if (member.permissions.has('ManageGuild') || member.permissions.has('Administrator')) {
     return true;
   }
 
+  // Global settings
+  const globalConfig = config.global || {};
   const cmdConfig = config.commands?.[commandName] || {};
 
-  const allowedUserIds = cmdConfig.allowedUserIds || config.allowedUserIds || [];
-  const allowedRoleIds = cmdConfig.allowedRoleIds || config.allowedRoleIds || [];
-  const blockedUserIds = cmdConfig.blockedUserIds || config.blockedUserIds || [];
-  const blockedRoleIds = cmdConfig.blockedRoleIds || config.blockedRoleIds || [];
+  // Blocked users (global)
+  if ((globalConfig.blockedUserIds || []).includes(member.id)) return false;
+  if ((globalConfig.blockedRoleIds || []).some(id => member.roles.cache.has(id))) return false;
 
-  if (blockedUserIds.includes(member.id)) return false;
-  if (blockedRoleIds.some(id => member.roles.cache.has(id))) return false;
+  // Blocked users (command)
+  if ((cmdConfig.blockedUserIds || []).includes(member.id)) return false;
+  if ((cmdConfig.blockedRoleIds || []).some(id => member.roles.cache.has(id))) return false;
 
-  const whitelistMode = cmdConfig.whitelistMode ?? config.whitelistMode;
+  // Channel-specific
+  if (channelId && cmdConfig.channels) {
+    const chConfig = cmdConfig.channels[channelId];
+    if (chConfig) {
+      if (chConfig.blocked) return false;
+      if (chConfig.allowedUserIds?.includes(member.id)) return true;
+      if (chConfig.allowedRoleIds?.some(id => member.roles.cache.has(id))) return true;
+    }
+  }
+
+  // Whitelist mode
+  const whitelistMode = cmdConfig.whitelistMode ?? globalConfig.whitelistMode;
 
   if (whitelistMode) {
-    if (allowedUserIds.includes(member.id)) return true;
-    if (allowedRoleIds.some(id => member.roles.cache.has(id))) return true;
+    if ((globalConfig.allowedUserIds || []).includes(member.id)) return true;
+    if ((globalConfig.allowedRoleIds || []).some(id => member.roles.cache.has(id))) return true;
+    if ((cmdConfig.allowedUserIds || []).includes(member.id)) return true;
+    if ((cmdConfig.allowedRoleIds || []).some(id => member.roles.cache.has(id))) return true;
     return false;
   }
 
-  if (allowedUserIds.length > 0 || allowedRoleIds.length > 0) {
-    if (allowedUserIds.includes(member.id)) return true;
-    if (allowedRoleIds.some(id => member.roles.cache.has(id))) return true;
+  // If explicit allowed lists exist
+  const hasAllowed =
+    (globalConfig.allowedUserIds?.length || 0) > 0 ||
+    (globalConfig.allowedRoleIds?.length || 0) > 0 ||
+    (cmdConfig.allowedUserIds?.length || 0) > 0 ||
+    (cmdConfig.allowedRoleIds?.length || 0) > 0;
+
+  if (hasAllowed) {
+    if ((globalConfig.allowedUserIds || []).includes(member.id)) return true;
+    if ((globalConfig.allowedRoleIds || []).some(id => member.roles.cache.has(id))) return true;
+    if ((cmdConfig.allowedUserIds || []).includes(member.id)) return true;
+    if ((cmdConfig.allowedRoleIds || []).some(id => member.roles.cache.has(id))) return true;
     return false;
   }
 
@@ -57,7 +82,8 @@ async function checkPermission(context, commandName) {
   const member = context.member;
   if (!member) return true;
 
-  const allowed = canUseCommand(member, commandName);
+  const channelId = context.channel?.id;
+  const allowed = canUseCommand(member, commandName, channelId);
   if (!allowed) {
     const msg = '❌ You do not have permission to use this command.';
     if (context.isChatInputCommand?.()) {
@@ -70,9 +96,34 @@ async function checkPermission(context, commandName) {
   return true;
 }
 
+// Get user/role names from IDs
+async function getDisplayNames(client, guild, userIds = [], roleIds = []) {
+  const users = [];
+  const roles = [];
+
+  for (const id of userIds) {
+    try {
+      const member = await guild.members.fetch(id).catch(() => null);
+      if (member) users.push({ id, name: member.user.tag });
+      else users.push({ id, name: `Unknown (${id})` });
+    } catch {
+      users.push({ id, name: `Unknown (${id})` });
+    }
+  }
+
+  for (const id of roleIds) {
+    const role = guild.roles.cache.get(id);
+    if (role) roles.push({ id, name: role.name });
+    else roles.push({ id, name: `Unknown (${id})` });
+  }
+
+  return { users, roles };
+}
+
 module.exports = {
   loadConfig,
   saveConfig,
   canUseCommand,
   checkPermission,
+  getDisplayNames,
 };
