@@ -35,5 +35,5 @@ module.exports = {
   // Stats
   chart: '📊',
   refresh: '🔄',
-  close: '<:emoji_136:1551907224358486117>',
+  close: <:emoji_136:1551907224358486117>,
 };
