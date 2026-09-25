@@ -120,6 +120,7 @@ module.exports = {
 
     const guild = context.guild;
     const client = context.client;
+    const e = emojis;
 
     // ===== ADD =====
     if (sub === 'add') {
@@ -145,13 +146,13 @@ module.exports = {
       if (type === 'user') {
         if (!targetConfig.allowedUserIds) targetConfig.allowedUserIds = [];
         if (targetConfig.allowedUserIds.includes(target)) {
-          return context.reply({ content: `${emojis.permission?.cross || '❌'} User already allowed.`, ephemeral: true });
+          return context.reply({ content: `${e.error} User already allowed.`, ephemeral: true });
         }
         targetConfig.allowedUserIds.push(target);
       } else {
         if (!targetConfig.allowedRoleIds) targetConfig.allowedRoleIds = [];
         if (targetConfig.allowedRoleIds.includes(target)) {
-          return context.reply({ content: `${emojis.permission?.cross || '❌'} Role already allowed.`, ephemeral: true });
+          return context.reply({ content: `${e.error} Role already allowed.`, ephemeral: true });
         }
         targetConfig.allowedRoleIds.push(target);
       }
@@ -160,7 +161,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
-        .setTitle(`${emojis.permission?.add || '➕'} Added`)
+        .setTitle(`${e.check} Added`)
         .setDescription(`Added **${type}** \`${target}\` to allowed list.`)
         .addFields(
           { name: 'Scope', value: command ? `Command: \`${command}\`` : 'Global', inline: true }
@@ -179,7 +180,7 @@ module.exports = {
       let targetConfig;
       if (command) {
         if (!config.commands[command]) {
-          return context.reply({ content: `${emojis.permission?.cross || '❌'} Command not configured.`, ephemeral: true });
+          return context.reply({ content: `${e.error} Command not configured.`, ephemeral: true });
         }
         targetConfig = config.commands[command];
       } else {
@@ -206,14 +207,14 @@ module.exports = {
       }
 
       if (!removed) {
-        return context.reply({ content: `${emojis.permission?.cross || '❌'} Not found in allowed list.`, ephemeral: true });
+        return context.reply({ content: `${e.error} Not found in allowed list.`, ephemeral: true });
       }
 
       saveConfig(config);
 
       const embed = new EmbedBuilder()
         .setColor(0xED4245)
-        .setTitle(`${emojis.permission?.remove || '➖'} Removed`)
+        .setTitle(`${e.cross} Removed`)
         .setDescription(`Removed **${type}** \`${target}\` from allowed list.`)
         .addFields(
           { name: 'Scope', value: command ? `Command: \`${command}\`` : 'Global', inline: true }
@@ -231,13 +232,13 @@ module.exports = {
       if (type === 'user') {
         if (!config.global.blockedUserIds) config.global.blockedUserIds = [];
         if (config.global.blockedUserIds.includes(target)) {
-          return context.reply({ content: `${emojis.permission?.cross || '❌'} User already blocked.`, ephemeral: true });
+          return context.reply({ content: `${e.error} User already blocked.`, ephemeral: true });
         }
         config.global.blockedUserIds.push(target);
       } else {
         if (!config.global.blockedRoleIds) config.global.blockedRoleIds = [];
         if (config.global.blockedRoleIds.includes(target)) {
-          return context.reply({ content: `${emojis.permission?.cross || '❌'} Role already blocked.`, ephemeral: true });
+          return context.reply({ content: `${e.error} Role already blocked.`, ephemeral: true });
         }
         config.global.blockedRoleIds.push(target);
       }
@@ -246,7 +247,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0xED4245)
-        .setTitle(`${emojis.permission?.cross || '❌'} Blocked`)
+        .setTitle(`${e.cross} Blocked`)
         .setDescription(`Blocked **${type}** \`${target}\`.`)
         .setTimestamp();
 
@@ -278,14 +279,14 @@ module.exports = {
       }
 
       if (!removed) {
-        return context.reply({ content: `${emojis.permission?.cross || '❌'} Not found in blocked list.`, ephemeral: true });
+        return context.reply({ content: `${e.error} Not found in blocked list.`, ephemeral: true });
       }
 
       saveConfig(config);
 
       const embed = new EmbedBuilder()
         .setColor(0x57F287)
-        .setTitle(`${emojis.permission?.check || '✅'} Unblocked`)
+        .setTitle(`${e.check} Unblocked`)
         .setDescription(`Unblocked **${type}** \`${target}\`.`)
         .setTimestamp();
 
@@ -300,7 +301,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(config.global.whitelistMode ? 0x57F287 : 0xED4245)
-        .setTitle(`${emojis.permission?.shield || '🛡️'} Whitelist Mode`)
+        .setTitle(`${e.shield} Whitelist Mode`)
         .setDescription(`Whitelist mode is now **${config.global.whitelistMode ? 'ON' : 'OFF'}**.`)
         .setTimestamp();
 
@@ -316,34 +317,34 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0xFFFFFF)
-        .setTitle(`${emojis.permission?.list || '📜'} Current Permissions`)
+        .setTitle(`${e.list} Current Permissions`)
         .setDescription(
           `**Whitelist Mode:** ${config.global.whitelistMode ? '✅ ON' : '❌ OFF'}`
         )
         .addFields(
           {
-            name: `${emojis.permission?.check || '✅'} Allowed Users (${allowedUsers.length})`,
+            name: `${e.check} Allowed Users (${allowedUsers.length})`,
             value: allowedUsers.length > 0
               ? allowedUsers.map(u => `• ${u.name}`).join('\n').slice(0, 1024)
               : '*None*',
             inline: true
           },
           {
-            name: `${emojis.permission?.check || '✅'} Allowed Roles (${allowedRoles.length})`,
+            name: `${e.check} Allowed Roles (${allowedRoles.length})`,
             value: allowedRoles.length > 0
               ? allowedRoles.map(r => `• ${r.name}`).join('\n').slice(0, 1024)
               : '*None*',
             inline: true
           },
           {
-            name: `${emojis.permission?.cross || '❌'} Blocked Users (${blockedUsers.length})`,
+            name: `${e.cross} Blocked Users (${blockedUsers.length})`,
             value: blockedUsers.length > 0
               ? blockedUsers.map(u => `• ${u.name}`).join('\n').slice(0, 1024)
               : '*None*',
             inline: true
           },
           {
-            name: `${emojis.permission?.cross || '❌'} Blocked Roles (${blockedRoles.length})`,
+            name: `${e.cross} Blocked Roles (${blockedRoles.length})`,
             value: blockedRoles.length > 0
               ? blockedRoles.map(r => `• ${r.name}`).join('\n').slice(0, 1024)
               : '*None*',
@@ -377,7 +378,7 @@ module.exports = {
 
       const embed = new EmbedBuilder()
         .setColor(0xED4245)
-        .setTitle(`${emojis.permission?.cross || '❌'} Reset`)
+        .setTitle(`${e.cross} Reset`)
         .setDescription('All permissions have been reset.')
         .setTimestamp();
 
