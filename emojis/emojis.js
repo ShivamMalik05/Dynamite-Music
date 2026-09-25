@@ -34,6 +34,6 @@ module.exports = {
 
   // Stats
   chart: '📊',
-  refresh: '🔄',
   close: '❌',
+  refresh: '🔄',
 };
