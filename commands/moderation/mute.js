@@ -1,30 +1,55 @@
-const emojis = require('../../emojis/emojis');
+const { SlashCommandBuilder, PermissionFlagsBits } = require('discord.js');
 
 module.exports = {
   name: 'mute',
   description: 'Mute a user (timeout)',
-  async execute(message, args) {
-    if (!message.member.permissions.has('ModerateMembers')) {
-      return message.reply(`${emojis.error} You do not have permission!`);
+  data: new SlashCommandBuilder()
+    .setName('mute')
+    .setDescription('Mute a user (timeout)')
+    .addUserOption(option =>
+      option.setName('user').setDescription('User to mute').setRequired(true))
+    .addIntegerOption(option =>
+      option.setName('minutes').setDescription('Duration in minutes').setRequired(false))
+    .addStringOption(option =>
+      option.setName('reason').setDescription('Reason').setRequired(false))
+    .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
+
+  async execute(context, args) {
+    let member, minutes, reason;
+
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      const user = context.options.getUser('user');
+      member = await context.guild.members.fetch(user.id);
+      minutes = context.options.getInteger('minutes') || 10;
+      reason = context.options.getString('reason') || 'No reason provided';
+    } else {
+      if (!context.member.permissions.has('ModerateMembers')) {
+        return context.reply('You do not have permission!');
+      }
+      member = context.mentions.members.first();
+      if (!member) return context.reply('Mention a user to mute!');
+      minutes = parseInt(args[1]) || 10;
+      reason = args.slice(2).join(' ') || 'No reason provided';
     }
 
-    const member = message.mentions.members.first();
-    if (!member) return message.reply(`${emojis.error} Mention a user to mute!`);
-    if (!member.moderatable) return message.reply(`${emojis.error} Cannot mute this user!`);
-
-    const minutes = parseInt(args[1]) || 10;
+    if (!member.moderatable) {
+      return context.isChatInputCommand?.() 
+        ? context.reply({ content: 'Cannot mute this user!', ephemeral: true })
+        : context.reply('Cannot mute this user!');
+    }
     if (minutes < 1 || minutes > 10080) {
-      return message.reply(`${emojis.error} Provide minutes between 1 and 10080 (7 days).`);
+      return context.isChatInputCommand?.()
+        ? context.reply({ content: 'Minutes must be 1-10080.', ephemeral: true })
+        : context.reply('Minutes must be 1-10080.');
     }
 
-    const reason = args.slice(2).join(' ') || 'No reason provided';
+    await member.timeout(minutes * 60 * 1000, reason);
+    const msg = `Muted **${member.user.tag}** for **${minutes}** minute(s). Reason: ${reason}`;
 
-    try {
-      await member.timeout(minutes * 60 * 1000, reason);
-      message.reply(`${emojis.mute} Muted **${member.user.tag}** for **${minutes}** minute(s). Reason: ${reason}`);
-    } catch (error) {
-      console.error(error);
-      message.reply(`${emojis.error} Failed to mute this user.`);
+    if (context.isChatInputCommand && context.isChatInputCommand()) {
+      await context.reply(msg);
+    } else {
+      context.reply(msg);
     }
   },
 };
