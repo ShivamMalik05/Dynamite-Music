@@ -8,18 +8,18 @@ const {
   ChannelType,
   ButtonBuilder,
   ButtonStyle,
+  StringSelectMenuBuilder,
 } = require('discord.js');
 const { loadConfig, saveConfig } = require('../utils/logger');
-const emojis = require('../emojis/emojis');
 
 const LOG_TYPES = [
-  { id: 'moderation', label: 'Moderation', emoji: '🔨' },
-  { id: 'messages', label: 'Messages', emoji: '💬' },
-  { id: 'members', label: 'Members', emoji: '👥' },
-  { id: 'channels', label: 'Channels', emoji: '📢' },
-  { id: 'roles', label: 'Roles', emoji: '🎭' },
-  { id: 'voice', label: 'Voice', emoji: '🔊' },
-  { id: 'server', label: 'Server', emoji: '🏠' },
+  { id: 'moderation', label: 'Moderation', emoji: '🛡️', color: 0xED4245, desc: 'Bans, kicks, warns, timeouts' },
+  { id: 'messages', label: 'Messages', emoji: '💬', color: 0xFEE75C, desc: 'Message edits and deletes' },
+  { id: 'members', label: 'Members', emoji: '👥', color: 0x57F287, desc: 'Joins, leaves, nickname changes' },
+  { id: 'channels', label: 'Channels', emoji: '📢', color: 0x5865F2, desc: 'Channel create, delete, update' },
+  { id: 'roles', label: 'Roles', emoji: '🎭', color: 0xEB459E, desc: 'Role create, delete, update' },
+  { id: 'voice', label: 'Voice', emoji: '🔊', color: 0x1ABC9C, desc: 'Voice join, leave, move' },
+  { id: 'server', label: 'Server', emoji: '🏠', color: 0x9B59B6, desc: 'Server updates and changes' },
 ];
 
 function buildPanel(config) {
@@ -27,95 +27,148 @@ function buildPanel(config) {
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# ${emojis.star} Log Setup Panel\n**Configure where each type of log goes**`
+        `# 📋 Log Setup Panel\n` +
+        `**Configure where each type of log goes**`
       )
     )
-    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `**Available Log Types**\n` +
+        `Configure each one to receive its own events.`
+      )
+    );
 
   for (const type of LOG_TYPES) {
-    const channelId = config.logChannels[type.id];
-    const channelText = channelId ? `<#${channelId}>` : '*Not set*';
-    const status = config.logging[type.id] ? `${emojis.success} Enabled` : `${emojis.error} Disabled`;
+    const channelId = config.channels[type.id];
+    const channelText = channelId ? `<#${channelId}>` : '`Not set`';
+    const status = config.enabled[type.id] ? '✅' : '❌';
 
     container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `${type.emoji} **${type.label}**\n` +
-        `${emojis.arrowRight} Channel: ${channelText}\n` +
-        `${emojis.arrowRight} Status: ${status}`
+        `${type.emoji} **${type.label}** ${status}\n` +
+        `└ ${channelText}`
       )
     );
   }
 
-  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true));
-  container.addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
+  container.addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `**How to use:**\n` +
+        `1. Click the dropdown below\n` +
+        `2. Choose a log type\n` +
+        `3. Select a channel\n\n` +
+        `**Tips:**\n` +
+        `• Use **Toggle All** to enable/disable all logs\n` +
+        `• Use **Reset All** to clear all channel settings`
+      )
+    )
+    .addSeparatorComponents(new SeparatorBuilder().setSpacing(SeparatorSpacingSize.Small).setDivider(true))
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
+    );
 
   return container;
 }
 
 function buildButtons() {
-  const row1 = new ActionRowBuilder().addComponents(
-    LOG_TYPES.slice(0, 4).map(type =>
-      new ButtonBuilder().setCustomId(`setlog_${type.id}`).setLabel(type.label).setEmoji(type.emoji).setStyle(ButtonStyle.Secondary)
-    )
-  );
-  const row2 = new ActionRowBuilder().addComponents(
-    LOG_TYPES.slice(4).map(type =>
-      new ButtonBuilder().setCustomId(`setlog_${type.id}`).setLabel(type.label).setEmoji(type.emoji).setStyle(ButtonStyle.Secondary)
-    )
-  );
-  const row3 = new ActionRowBuilder().addComponents(
+  const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder().setCustomId('setlog_toggle').setLabel('Toggle All').setEmoji('🔄').setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId('setlog_reset').setLabel('Reset All').setEmoji('🗑️').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId('setlog_reset').setLabel('Reset All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('setlog_refresh').setLabel('Refresh').setEmoji('🔃').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('setlog_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
   );
-  return [row1, row2, row3];
+  return [row];
+}
+
+function buildTypeSelect() {
+  const options = LOG_TYPES.map(t => ({
+    label: t.label,
+    value: t.id,
+    emoji: t.emoji,
+    description: t.desc,
+  }));
+
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId('setlog_type_select')
+    .setPlaceholder('Select a log type to configure')
+    .addOptions(options);
+
+  return [new ActionRowBuilder().addComponents(menu)];
 }
 
 async function handleButton(interaction) {
   const config = loadConfig();
+  const id = interaction.customId;
 
-  if (!['setlog_reset', 'setlog_toggle'].includes(interaction.customId)) {
-    const type = interaction.customId.replace('setlog_', '');
-    if (!LOG_TYPES.map(t => t.id).includes(type)) return false;
-
-    const row = new ActionRowBuilder().addComponents(
-      new ChannelSelectMenuBuilder()
-        .setCustomId(`setlog_channel_${type}`)
-        .setPlaceholder(`Select channel for ${type} logs`)
-        .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
-        .setMinValues(1).setMaxValues(1)
-    );
-
-    await interaction.reply({ content: `Select channel for **${type}** logs:`, components: [row], ephemeral: true });
+  if (id === 'setlog_close') {
+    await interaction.update({ components: [] });
     return true;
   }
 
-  if (interaction.customId === 'setlog_reset') {
-    config.logChannels = { moderation: '', messages: '', members: '', channels: '', roles: '', voice: '', server: '' };
+  if (id === 'setlog_toggle') {
+    const allEnabled = Object.values(config.enabled).every(v => v === true);
+    for (const key of Object.keys(config.enabled)) config.enabled[key] = !allEnabled;
     saveConfig(config);
-    await interaction.update({ components: [buildPanel(config), ...buildButtons()], flags: 1 << 15 });
+    await interaction.update({
+      components: [buildPanel(config), ...buildTypeSelect(), ...buildButtons()],
+      flags: 1 << 15,
+    });
     return true;
   }
 
-  if (interaction.customId === 'setlog_toggle') {
-    const allEnabled = Object.values(config.logging).every(v => v === true);
-    for (const key of Object.keys(config.logging)) config.logging[key] = !allEnabled;
+  if (id === 'setlog_reset') {
+    for (const key of Object.keys(config.channels)) config.channels[key] = '';
     saveConfig(config);
-    await interaction.update({ components: [buildPanel(config), ...buildButtons()], flags: 1 << 15 });
+    await interaction.update({
+      components: [buildPanel(config), ...buildTypeSelect(), ...buildButtons()],
+      flags: 1 << 15,
+    });
+    return true;
+  }
+
+  if (id === 'setlog_refresh') {
+    await interaction.update({
+      components: [buildPanel(config), ...buildTypeSelect(), ...buildButtons()],
+      flags: 1 << 15,
+    });
     return true;
   }
 
   return false;
 }
 
+async function handleSelect(interaction) {
+  const type = interaction.values[0];
+  const validTypes = LOG_TYPES.map(t => t.id);
+  if (!validTypes.includes(type)) return false;
+
+  const row = new ActionRowBuilder().addComponents(
+    new ChannelSelectMenuBuilder()
+      .setCustomId(`setlog_channel_${type}`)
+      .setPlaceholder(`Select channel for ${type} logs`)
+      .addChannelTypes(ChannelType.GuildText, ChannelType.GuildAnnouncement)
+      .setMinValues(1).setMaxValues(1)
+  );
+
+  await interaction.reply({
+    content: `Select the channel for **${type}** logs:`,
+    components: [row],
+    ephemeral: true,
+  });
+  return true;
+}
+
 async function handleChannelSelect(interaction) {
   const type = interaction.customId.replace('setlog_channel_', '');
   const channel = interaction.channels.first();
   const config = loadConfig();
-  config.logChannels[type] = channel.id;
+  config.channels[type] = channel.id;
   saveConfig(config);
 
   await interaction.update({
-    content: `${emojis.success} **${type}** logs will now be sent to ${channel}.`,
+    content: `✅ **${type}** logs will now be sent to ${channel}.`,
     components: [],
   });
   return true;
@@ -125,8 +178,11 @@ module.exports = {
   LOG_TYPES,
   buildPanel,
   buildButtons,
+  buildTypeSelect,
   handleButton,
+  handleSelect,
   handleChannelSelect,
-  isSetlogButton: (id) => id.startsWith('setlog_'),
+  isSetlogButton: (id) => id.startsWith('setlog_') && !id.startsWith('setlog_channel_'),
+  isSetlogSelect: (id) => id === 'setlog_type_select',
   isSetlogChannel: (id) => id.startsWith('setlog_channel_'),
 };
