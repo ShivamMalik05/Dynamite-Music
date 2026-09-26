@@ -44,4 +44,45 @@ module.exports = {
         // setperm
         if (interaction.customId.startsWith('sp_')) {
           const setperm = client.slashCommands.get('setperm');
-          if (setperm && setperm
+          if (setperm && setperm.handleButton) return await setperm.handleButton(interaction, client);
+        }
+
+        // Existing
+        if (embedbuilder.isRoleButton(interaction.customId)) return await embedbuilder.handleRoleButton(interaction);
+        if (setlog.isSetlogButton(interaction.customId)) return await setlog.handleButton(interaction, client);
+        if (embedbuilder.isEmbedButton(interaction.customId)) return await embedbuilder.handleButton(interaction, client);
+      }
+
+      if (interaction.isStringSelectMenu()) {
+        if (setlog.isSetlogSelect(interaction.customId)) return await setlog.handleSelect(interaction);
+        if (embedbuilder.isEmbedSelect(interaction.customId)) return await embedbuilder.handleSelect(interaction, client);
+      }
+
+      if (interaction.isUserSelectMenu() || interaction.isRoleSelectMenu()) {
+        if (interaction.customId.startsWith('sp_select_')) {
+          const setperm = client.slashCommands.get('setperm');
+          if (setperm && setperm.handleSelect) return await setperm.handleSelect(interaction, client);
+        }
+      }
+
+      if (interaction.isChannelSelectMenu()) {
+        if (setlog.isSetlogChannel(interaction.customId)) return await setlog.handleChannelSelect(interaction);
+      }
+
+      if (interaction.isModalSubmit()) {
+        if (interaction.customId.startsWith('aa_modal_')) {
+          const autoaction = client.slashCommands.get('autoaction');
+          if (autoaction && autoaction.handleModal) return await autoaction.handleModal(interaction, client);
+        }
+        if (embedbuilder.isEmbedModal(interaction.customId)) return await embedbuilder.handleModal(interaction, client);
+      }
+    } catch (error) {
+      console.error('Interaction error:', error);
+      try {
+        if (!interaction.replied && !interaction.deferred) {
+          await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
+        }
+      } catch (e) {}
+    }
+  },
+};
