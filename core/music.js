@@ -1,4 +1,5 @@
-// Music system core — Lavalink ya Discord Player
+// Music system core - Lavalink or Discord Player will be integrated here
+// Basic structure for now, commands will be added in Phase 12
 
 module.exports = {
   queues: new Map(), // guildId -> queue
