@@ -15,10 +15,23 @@ module.exports = (client) => {
     const categoryPath = path.join(commandsPath, category);
     if (!fs.statSync(categoryPath).isDirectory()) continue;
 
-    const files = fs.readdirSync(categoryPath).filter(f => f.endsWith('.js'));
+    const entries = fs.readdirSync(categoryPath);
 
-    for (const file of files) {
-      const command = require(path.join(categoryPath, file));
+    for (const entry of entries) {
+      const entryPath = path.join(categoryPath, entry);
+      const stat = fs.statSync(entryPath);
+
+      let command;
+      if (stat.isDirectory()) {
+        // Folder — look for index.js inside
+        const indexPath = path.join(entryPath, 'index.js');
+        if (!fs.existsSync(indexPath)) continue;
+        command = require(indexPath);
+      } else if (entry.endsWith('.js')) {
+        command = require(entryPath);
+      } else {
+        continue;
+      }
 
       if (command.name && command.execute) {
         client.commands.set(command.name, command);
