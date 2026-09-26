@@ -2,7 +2,7 @@ const config = require('./config');
 const nopCore = require('./nop');
 
 module.exports = {
-  // Message se prefix + command nikalo
+  // Extract prefix and command from message
   parse(message, client) {
     const content = message.content.trim();
     if (!content) return null;
