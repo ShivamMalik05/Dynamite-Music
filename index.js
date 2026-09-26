@@ -38,46 +38,34 @@ client.once('ready', async () => {
   console.log(`Bot online: ${client.user.tag}`);
   client.user.setActivity('!help | /help');
 
-  // ===== FETCH APP EMOJIS =====
+  // Fetch app emojis
   client.appEmojis = await fetchAppEmojis(client);
   console.log(`App emojis loaded: ${Object.keys(client.appEmojis).length}`);
 
-  // ===== REGISTER SLASH COMMANDS =====
+  // Register slash commands
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   try {
     console.log('Syncing slash commands...');
 
     const existing = await rest.get(Routes.applicationCommands(client.user.id));
 
-    const final = [];
-    const seenNames = new Set();
+    // Get current command names from files
+    const currentNames = new Set(slashArray.map(c => c.name));
 
-    // Add new commands
-    for (const cmd of slashArray) {
-      final.push(cmd);
-      seenNames.add(cmd.name);
-    }
-
-    // Preserve existing commands not in new list
+    // Delete commands that are no longer in files
     for (const cmd of existing) {
-      if (!seenNames.has(cmd.name)) {
-        final.push(cmd);
-        seenNames.add(cmd.name);
+      if (!currentNames.has(cmd.name)) {
+        await rest.delete(Routes.applicationCommand(client.user.id, cmd.id)).catch(() => {});
+        console.log(`🗑️ Deleted: ${cmd.name}`);
       }
     }
 
-    const existingNames = existing.map(c => c.name).sort().join(',');
-    const finalNames = final.map(c => c.name).sort().join(',');
-
-    if (existingNames !== finalNames) {
-      await rest.put(
-        Routes.applicationCommands(client.user.id),
-        { body: final }
-      );
-      console.log(`✅ Registered ${final.length} slash commands (${final.length - existing.length} new)`);
-    } else {
-      console.log(`✅ Slash commands already up to date (${final.length} total)`);
-    }
+    // Register all current commands
+    await rest.put(
+      Routes.applicationCommands(client.user.id),
+      { body: slashArray }
+    );
+    console.log(`✅ Registered ${slashArray.length} slash commands`);
   } catch (error) {
     console.error('Failed to register slash commands:', error);
   }
