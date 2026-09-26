@@ -85,7 +85,7 @@ module.exports = {
       }
 
       const lines = warnings.map(w => 
-        `**#${w.id}** — ${w.reason}\n└ by ${w.moderator} • <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>`
+        `**#${w.id}** — ${w.reason}\n└ by ${w.moderator} ${emojis.dot} <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>`
       );
 
       const text = `${emojis.warn} **${user.tag}** has **${warnings.length}** warning(s):\n\n${lines.join('\n\n')}`;
@@ -166,7 +166,6 @@ module.exports = {
 
       await context.reply({ content: replyText, ephemeral: true });
 
-      // Log
       await sendLog(client, 'moderation', {
         emoji: emojis.purge,
         title: 'Warnings Removed',
@@ -197,7 +196,7 @@ module.exports = {
       }
 
       const lines = allWarnings.slice(0, 20).map(w => {
-        return `**#${w.id}** — <@${w.userId}>\n└ ${w.reason} • by ${w.moderator} • <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>`;
+        return `**#${w.id}** — <@${w.userId}>\n└ ${w.reason} ${emojis.dot} by ${w.moderator} ${emojis.dot} <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>`;
       });
 
       const text = `${emojis.history} **Warning History** (Last 20 of ${allWarnings.length})\n\n${lines.join('\n\n')}`;
@@ -239,7 +238,7 @@ module.exports = {
       const topMods = Object.entries(moderatorCounts)
         .sort((a, b) => b[1] - a[1])
         .slice(0, 5)
-        .map(([mod, count]) => `• ${mod} — \`${count}\``)
+        .map(([mod, count]) => `${emojis.dot} ${mod} — \`${count}\``)
         .join('\n') || '*None*';
 
       let mostWarnedText = '*None*';
@@ -254,9 +253,9 @@ module.exports = {
 
       return context.reply(
         `${emojis.stats} **Warning Stats**\n\n` +
-        `${emojis.arrowRight} **Total Warnings:** \`${totalWarnings}\`\n` +
-        `${emojis.arrowRight} **Users Warned:** \`${usersWithWarnings}\`\n` +
-        `${emojis.arrowRight} **Most Warned:** ${mostWarnedText}\n\n` +
+        `${emojis.arrow} **Total Warnings:** \`${totalWarnings}\`\n` +
+        `${emojis.arrow} **Users Warned:** \`${usersWithWarnings}\`\n` +
+        `${emojis.arrow} **Most Warned:** ${mostWarnedText}\n\n` +
         `**Top Moderators:**\n${topMods}`
       );
     }
