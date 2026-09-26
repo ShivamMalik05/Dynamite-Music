@@ -35,7 +35,7 @@ function loadConfig() {
     delete require.cache[require.resolve(configPath)];
     return require(configPath);
   } catch {
-    return { autoAction: { enabled: false } };
+    return { rules: [] };
   }
 }
 
@@ -94,7 +94,6 @@ module.exports = {
       guild = context.guild;
     }
 
-    // Save warning
     const data = loadWarnings();
     const warningId = data.nextId;
     data.nextId += 1;
@@ -111,144 +110,46 @@ module.exports = {
     saveWarnings(data);
 
     const totalWarnings = data.warnings[targetId].length;
+    const cfg = loadConfig();
 
-    // DM
-    try {
-      const dmEmbed = new EmbedBuilder()
+    // ===== DM =====
+    if (!cfg.silentMode) {
+      try {
+        const dmEmbed = new EmbedBuilder()
+          .setColor(0xFEE75C)
+          .setAuthor({
+            name: `Warning from ${guild.name}`,
+            iconURL: guild.iconURL({ dynamic: true, size: 128 }) || client.user.displayAvatarURL({ dynamic: true, size: 128 })
+          })
+          .setTitle(`${emojis.warn} You Have Been Warned`)
+          .setDescription(
+            (cfg.customDM?.warn || 'You have received a warning in {guild}. Reason: {reason}')
+              .replace('{guild}', guild.name)
+              .replace('{reason}', reason)
+          )
+          .addFields(
+            { name: `${emojis.warnings} Total`, value: `\`${totalWarnings}\``, inline: true },
+            { name: `${emojis.info} ID`, value: `\`#${warningId}\``, inline: true }
+          )
+          .setFooter({ text: 'Powered by Dynamite Music' })
+          .setTimestamp();
+
+        await targetUser.send({ embeds: [dmEmbed] });
+      } catch (err) {}
+    }
+
+    // ===== PUBLIC EMBED =====
+    if (!cfg.silentMode) {
+      const publicEmbed = new EmbedBuilder()
         .setColor(0xFEE75C)
         .setAuthor({
-          name: `Warning from ${guild.name}`,
-          iconURL: guild.iconURL({ dynamic: true, size: 128 }) || client.user.displayAvatarURL({ dynamic: true, size: 128 })
+          name: 'Moderation Action',
+          iconURL: client.user.displayAvatarURL({ dynamic: true, size: 128 })
         })
-        .setTitle(`${emojis.warn} You Have Been Warned`)
-        .setDescription(`You have received a warning in **${guild.name}**.`)
-        .addFields(
-          { name: `${emojis.reason} Reason`, value: `\`\`\`${reason}\`\`\``, inline: false },
-          { name: `${emojis.warnings} Total`, value: `\`${totalWarnings}\``, inline: true },
-          { name: `${emojis.info} ID`, value: `\`#${warningId}\``, inline: true }
+        .setTitle(`${emojis.warn} Warning Issued`)
+        .setDescription(
+          `> ${targetUser} has been warned.\n\n` +
+          `**${emojis.reason} Reason:** ${reason}\n` +
+          `**${emojis.warnings} Total:** \`${totalWarnings}\``
         )
-        .setFooter({ text: 'Powered by Dynamite Music' })
-        .setTimestamp();
-
-      await targetUser.send({ embeds: [dmEmbed] });
-    } catch (err) {}
-
-    // Public embed
-    const publicEmbed = new EmbedBuilder()
-      .setColor(0xFEE75C)
-      .setAuthor({
-        name: 'Moderation Action',
-        iconURL: client.user.displayAvatarURL({ dynamic: true, size: 128 })
-      })
-      .setTitle(`${emojis.warn} Warning Issued`)
-      .setDescription(
-        `> ${targetUser} has been warned.\n\n` +
-        `**${emojis.reason} Reason:** ${reason}\n` +
-        `**${emojis.warnings} Total:** \`${totalWarnings}\``
-      )
-      .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
-      .setFooter({
-        text: `Warning ID: #${warningId} ${emojis.dot} Powered by Dynamite Music`,
-        iconURL: client.user.displayAvatarURL({ dynamic: true, size: 64 })
-      })
-      .setTimestamp();
-
-    if (isSlash) {
-      await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
-      setTimeout(() => context.deleteReply().catch(() => {}), 5000);
-    } else {
-      const sentMsg = await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
-      setTimeout(() => sentMsg.delete().catch(() => {}), 5000);
-    }
-
-    // Log
-    await sendLog(client, 'moderation', {
-      emoji: emojis.warn,
-      title: 'User Warned',
-      subtitle: 'A user was warned',
-      fields: [
-        { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
-        { name: '🛡️ Moderator', value: `${moderatorTag} (${moderatorId})` },
-        { name: '📝 Reason', value: reason },
-        { name: '🆔 ID', value: `#${warningId}` },
-        { name: '📊 Total', value: `${totalWarnings}` },
-      ],
-    });
-
-    // ===== AUTO-ACTION =====
-    try {
-      const cfg = loadConfig();
-      console.log('[warn] Auto-action config:', JSON.stringify(cfg.autoAction));
-      console.log('[warn] Total warnings:', totalWarnings);
-
-      if (cfg.autoAction && cfg.autoAction.enabled) {
-        const member = await guild.members.fetch(targetId).catch(() => null);
-        if (!member) {
-          console.log('[warn] Member not found for auto-action');
-          return;
-        }
-
-        console.log('[warn] Member found, checking thresholds...');
-
-        // BAN
-        if (cfg.autoAction.banAt && totalWarnings >= cfg.autoAction.banAt) {
-          console.log('[warn] Auto-ban triggered');
-          await member.ban({ reason: `Auto-ban: ${totalWarnings} warnings` }).catch(err => {
-            console.error('[warn] Ban failed:', err.message);
-          });
-          await sendLog(client, 'moderation', {
-            emoji: emojis.ban,
-            title: 'Auto-Ban Triggered',
-            subtitle: 'User reached warning threshold',
-            fields: [
-              { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
-              { name: '📊 Warnings', value: `${totalWarnings}` },
-              { name: '📝 Reason', value: `Auto-ban at ${cfg.autoAction.banAt} warnings` },
-            ],
-          });
-        }
-        // KICK
-        else if (cfg.autoAction.kickAt && totalWarnings >= cfg.autoAction.kickAt) {
-          console.log('[warn] Auto-kick triggered');
-          await member.kick(`Auto-kick: ${totalWarnings} warnings`).catch(err => {
-            console.error('[warn] Kick failed:', err.message);
-          });
-          await sendLog(client, 'moderation', {
-            emoji: emojis.kick,
-            title: 'Auto-Kick Triggered',
-            subtitle: 'User reached warning threshold',
-            fields: [
-              { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
-              { name: '📊 Warnings', value: `${totalWarnings}` },
-              { name: '📝 Reason', value: `Auto-kick at ${cfg.autoAction.kickAt} warnings` },
-            ],
-          });
-        }
-        // MUTE
-        else if (cfg.autoAction.muteAt && totalWarnings >= cfg.autoAction.muteAt) {
-          console.log('[warn] Auto-mute triggered');
-          const duration = (cfg.autoAction.muteDuration || 60) * 60 * 1000;
-          await member.timeout(duration, `Auto-mute: ${totalWarnings} warnings`).catch(err => {
-            console.error('[warn] Mute failed:', err.message);
-          });
-          await sendLog(client, 'moderation', {
-            emoji: emojis.mute,
-            title: 'Auto-Mute Triggered',
-            subtitle: 'User reached warning threshold',
-            fields: [
-              { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
-              { name: '📊 Warnings', value: `${totalWarnings}` },
-              { name: '⏱️ Duration', value: `${cfg.autoAction.muteDuration || 60} minutes` },
-            ],
-          });
-        } else {
-          console.log('[warn] No threshold reached yet');
-        }
-      } else {
-        console.log('[warn] Auto-action disabled');
-      }
-    } catch (err) {
-      console.error('[warn] Auto-action error:', err);
-    }
-  },
-};
+        .setTh
