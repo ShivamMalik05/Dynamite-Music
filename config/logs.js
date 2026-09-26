@@ -1,6 +1,3 @@
-cd ~/Dynamite-Music
-rm -f config/logs.js
-cat > config/logs.js << 'EOF'
 module.exports = {
   "channels": {
     "moderation": "1550404080856211555",
@@ -71,4 +68,3 @@ module.exports = {
   "ignoredRoles": [],
   "ignoredUsers": []
 };
-EOF
