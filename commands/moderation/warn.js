@@ -57,7 +57,7 @@ module.exports = {
       client = context.client;
       guild = context.guild;
     } else {
-      setTimeout(() => context.delete().catch(() => {}), 5000);
+      setTimeout(() => context.delete().catch(() => {}), 2500);
 
       if (!context.member.permissions.has('ModerateMembers')) {
         const msg = await context.reply(`${emojis.error} You do not have permission!`);
