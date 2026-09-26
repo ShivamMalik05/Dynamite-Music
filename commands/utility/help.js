@@ -42,11 +42,10 @@ const CATEGORY_EMOJIS = {
   Other: '📁',
 };
 
-// ===== BUILD INTRO PAGE =====
+// ===== INTRO PAGE =====
 function buildIntroPage(client) {
   const categories = getCategories(client);
   const totalCommands = client.commands.size;
-  const totalPrefix = client.commands.size;
   const totalSlash = client.slashCommands?.size || 0;
 
   const container = new ContainerBuilder()
@@ -70,8 +69,7 @@ function buildIntroPage(client) {
       new TextDisplayBuilder().setContent(
         `**${emojis.chart} Statistics**\n` +
         `${emojis.arrowRight} **Total Commands:** \`${totalCommands}\`\n` +
-        `${emojis.arrowRight} **Prefix:** \`${totalPrefix}\`\n` +
-        `${emojis.arrowRight} **Slash:** \`${totalSlash}\``
+        `${emojis.arrowRight} **Slash Commands:** \`${totalSlash}\``
       )
     )
     .addSeparatorComponents(makeSep())
@@ -101,7 +99,7 @@ function buildIntroPage(client) {
   return container;
 }
 
-// ===== BUILD CATEGORY PAGE =====
+// ===== CATEGORY PAGE =====
 function buildCategoryPage(client, category) {
   const categories = getCategories(client);
   const commands = categories[category] || [];
@@ -137,7 +135,7 @@ function buildCategoryPage(client, category) {
   return container;
 }
 
-// ===== BUILD ALL COMMANDS PAGE =====
+// ===== ALL COMMANDS PAGE =====
 function buildAllPage(client) {
   const categories = getCategories(client);
 
@@ -173,7 +171,7 @@ function buildAllPage(client) {
   return container;
 }
 
-// ===== BUILD DROPDOWN =====
+// ===== DROPDOWN =====
 function buildDropdown(client) {
   const categories = getCategories(client);
 
@@ -204,7 +202,7 @@ function buildDropdown(client) {
   return [new ActionRowBuilder().addComponents(menu)];
 }
 
-// ===== BUILD NAV BUTTONS =====
+// ===== NAV BUTTONS =====
 function buildNavButtons(disabled = false) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -227,7 +225,7 @@ function buildNavButtons(disabled = false) {
   return [row];
 }
 
-// ===== BUILD FULL VIEW =====
+// ===== FULL VIEW =====
 function buildFullView(client, viewType, category = null) {
   let container;
   let isIntro = false;
@@ -276,7 +274,7 @@ module.exports = {
       client = context.client;
     }
 
-    // ===== COMMAND DETAIL VIEW =====
+    // ===== COMMAND DETAIL =====
     if (commandName) {
       const cmd = client.commands.get(commandName.toLowerCase());
       if (!cmd) {
@@ -320,27 +318,19 @@ module.exports = {
           .setStyle(ButtonStyle.Danger)
       );
 
-      if (isSlash) {
-        await context.reply({ components: [container, row], flags: 1 << 15 });
-      } else {
-        const sentMsg = await context.reply({ components: [container, row], flags: 1 << 15 });
-        setTimeout(() => sentMsg.delete().catch(() => {}), 60000);
-      }
+      // No auto-delete
+      await context.reply({ components: [container, row], flags: 1 << 15 });
       return;
     }
 
     // ===== INTRO VIEW =====
     const components = buildFullView(client, 'intro');
 
-    if (isSlash) {
-      await context.reply({ components, flags: 1 << 15 });
-    } else {
-      const sentMsg = await context.reply({ components, flags: 1 << 15 });
-      setTimeout(() => sentMsg.delete().catch(() => {}), 60000);
-    }
+    // No auto-delete
+    await context.reply({ components, flags: 1 << 15 });
   },
 
-  // ===== HANDLE BUTTONS =====
+  // ===== BUTTONS =====
   async handleButton(interaction, client) {
     const id = interaction.customId;
     if (!id.startsWith('help_')) return false;
@@ -365,7 +355,7 @@ module.exports = {
     return false;
   },
 
-  // ===== HANDLE SELECT =====
+  // ===== SELECT =====
   async handleSelect(interaction, client) {
     const id = interaction.customId;
     if (id !== 'help_menu') return false;
@@ -376,7 +366,6 @@ module.exports = {
     if (value === 'all') {
       components = buildFullView(client, 'all');
     } else {
-      // Find actual category name (case-sensitive)
       const categories = getCategories(client);
       const realCat = Object.keys(categories).find(c => c.toLowerCase() === value);
       if (!realCat) {
