@@ -27,6 +27,15 @@ module.exports = {
       if (interaction.isButton()) {
         const id = interaction.customId;
 
+        // Autoaction buttons
+        if (id.startsWith('aa_')) {
+          const autoaction = client.slashCommands.get('autoaction');
+          if (autoaction && autoaction.handleButton) {
+            const handled = await autoaction.handleButton(interaction, client);
+            if (handled) return;
+          }
+        }
+
         // Serverinfo buttons
         if (id.startsWith('si_')) {
           const serverinfo = client.slashCommands.get('serverinfo');
@@ -59,15 +68,6 @@ module.exports = {
           const warning = client.slashCommands.get('warning');
           if (warning && warning.handleButton) {
             const handled = await warning.handleButton(interaction, client);
-            if (handled) return;
-          }
-        }
-
-        // Autoaction buttons
-        if (id.startsWith('aa_')) {
-          const autoaction = client.slashCommands.get('autoaction');
-          if (autoaction && autoaction.handleButton) {
-            const handled = await autoaction.handleButton(interaction, client);
             if (handled) return;
           }
         }
@@ -151,6 +151,7 @@ module.exports = {
       if (interaction.isModalSubmit()) {
         const id = interaction.customId;
 
+        // Autoaction modals
         if (id.startsWith('aa_modal_')) {
           const autoaction = client.slashCommands.get('autoaction');
           if (autoaction && autoaction.handleModal) {
@@ -158,6 +159,7 @@ module.exports = {
           }
         }
 
+        // Embed builder modals
         if (embedbuilder.isEmbedModal(id)) {
           return await embedbuilder.handleModal(interaction, client);
         }
