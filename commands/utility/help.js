@@ -21,7 +21,6 @@ function makeSep() {
   }
 }
 
-// ===== GROUP COMMANDS BY CATEGORY =====
 function getCategories(client) {
   const categories = {};
   client.commands.forEach((command) => {
@@ -36,13 +35,12 @@ function getCategories(client) {
 }
 
 const CATEGORY_EMOJIS = {
-  Moderation: '🛡️',
-  Utility: '🔧',
-  Fun: '🎉',
-  Other: '📁',
+  Moderation: emojis.mod,
+  Utility: emojis.help,
+  Fun: emojis.smile,
+  Other: emojis.dot,
 };
 
-// ===== INTRO PAGE =====
 function buildIntroPage(client) {
   const categories = getCategories(client);
   const totalCommands = client.commands.size;
@@ -67,17 +65,17 @@ function buildIntroPage(client) {
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `**${emojis.chart} Statistics**\n` +
-        `${emojis.arrowRight} **Total Commands:** \`${totalCommands}\`\n` +
-        `${emojis.arrowRight} **Slash Commands:** \`${totalSlash}\``
+        `**${emojis.stats} Statistics**\n` +
+        `${emojis.arrow} **Total Commands:** \`${totalCommands}\`\n` +
+        `${emojis.arrow} **Slash Commands:** \`${totalSlash}\``
       )
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `**${emojis.field} Categories**\n` +
+        `**${emojis.field || emojis.info} Categories**\n` +
         Object.keys(categories).sort().map(cat => {
-          const emoji = CATEGORY_EMOJIS[cat] || '📁';
+          const emoji = CATEGORY_EMOJIS[cat] || emojis.dot;
           return `${emoji} **${cat}** — \`${categories[cat].length}\` command(s)`;
         }).join('\n')
       )
@@ -86,9 +84,9 @@ function buildIntroPage(client) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `**${emojis.info} How to use:**\n` +
-        `• Select a category from the dropdown\n` +
-        `• Or use \`/help command:ban\` for details\n` +
-        `• Prefix: \`!help\``
+        `${emojis.dot} Select a category from the dropdown\n` +
+        `${emojis.dot} Or use \`/help command:ban\` for details\n` +
+        `${emojis.dot} Prefix: \`!help\``
       )
     )
     .addSeparatorComponents(makeSep())
@@ -99,11 +97,10 @@ function buildIntroPage(client) {
   return container;
 }
 
-// ===== CATEGORY PAGE =====
 function buildCategoryPage(client, category) {
   const categories = getCategories(client);
   const commands = categories[category] || [];
-  const emoji = CATEGORY_EMOJIS[category] || '📁';
+  const emoji = CATEGORY_EMOJIS[category] || emojis.dot;
 
   const container = new ContainerBuilder()
     .setAccentColor(0x5865F2)
@@ -135,7 +132,6 @@ function buildCategoryPage(client, category) {
   return container;
 }
 
-// ===== ALL COMMANDS PAGE =====
 function buildAllPage(client) {
   const categories = getCategories(client);
 
@@ -143,14 +139,14 @@ function buildAllPage(client) {
     .setAccentColor(0x57F287)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# 📚 All Commands\n` +
+        `# ${emojis.message} All Commands\n` +
         `**${client.commands.size} total commands**`
       )
     )
     .addSeparatorComponents(makeSep());
 
   for (const category of Object.keys(categories).sort()) {
-    const emoji = CATEGORY_EMOJIS[category] || '📁';
+    const emoji = CATEGORY_EMOJIS[category] || emojis.dot;
     const commands = categories[category];
 
     let catText = `**${emoji} ${category}**\n`;
@@ -171,7 +167,6 @@ function buildAllPage(client) {
   return container;
 }
 
-// ===== DROPDOWN =====
 function buildDropdown(client) {
   const categories = getCategories(client);
 
@@ -185,11 +180,9 @@ function buildDropdown(client) {
   ];
 
   for (const cat of Object.keys(categories).sort()) {
-    const emoji = CATEGORY_EMOJIS[cat] || '📁';
     options.push({
       label: cat,
       value: cat.toLowerCase(),
-      emoji,
       description: `View ${categories[cat].length} ${cat} command(s)`,
     });
   }
@@ -202,7 +195,6 @@ function buildDropdown(client) {
   return [new ActionRowBuilder().addComponents(menu)];
 }
 
-// ===== NAV BUTTONS =====
 function buildNavButtons(disabled = false) {
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
@@ -225,7 +217,6 @@ function buildNavButtons(disabled = false) {
   return [row];
 }
 
-// ===== FULL VIEW =====
 function buildFullView(client, viewType, category = null) {
   let container;
   let isIntro = false;
@@ -274,7 +265,6 @@ module.exports = {
       client = context.client;
     }
 
-    // ===== COMMAND DETAIL =====
     if (commandName) {
       const cmd = client.commands.get(commandName.toLowerCase());
       if (!cmd) {
@@ -318,30 +308,22 @@ module.exports = {
           .setStyle(ButtonStyle.Danger)
       );
 
-      // No auto-delete
       await context.reply({ components: [container, row], flags: 1 << 15 });
       return;
     }
 
-    // ===== INTRO VIEW =====
     const components = buildFullView(client, 'intro');
-
-    // No auto-delete
     await context.reply({ components, flags: 1 << 15 });
   },
 
-  // ===== BUTTONS =====
   async handleButton(interaction, client) {
     const id = interaction.customId;
     if (!id.startsWith('help_')) return false;
 
-    // ===== CLOSE =====
     if (id === 'help_close') {
       try {
-        // Try to delete the message first
         await interaction.message.delete();
       } catch (err) {
-        // Fallback: update with minimal content
         try {
           await interaction.update({ content: 'Help menu closed.', components: [], embeds: [] });
         } catch (err2) {
@@ -351,14 +333,12 @@ module.exports = {
       return true;
     }
 
-    // ===== HOME =====
     if (id === 'help_home') {
       const components = buildFullView(client, 'intro');
       await interaction.update({ components, flags: 1 << 15 });
       return true;
     }
 
-    // ===== ALL COMMANDS =====
     if (id === 'help_all') {
       const components = buildFullView(client, 'all');
       await interaction.update({ components, flags: 1 << 15 });
@@ -368,7 +348,6 @@ module.exports = {
     return false;
   },
 
-  // ===== SELECT =====
   async handleSelect(interaction, client) {
     const id = interaction.customId;
     if (id !== 'help_menu') return false;
