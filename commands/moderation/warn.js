@@ -112,7 +112,7 @@ module.exports = {
     const totalWarnings = data.warnings[targetId].length;
     const cfg = loadConfig();
 
-    // ===== DM =====
+    // DM
     if (!cfg.silentMode) {
       try {
         const dmEmbed = new EmbedBuilder()
@@ -138,7 +138,7 @@ module.exports = {
       } catch (err) {}
     }
 
-    // ===== PUBLIC EMBED =====
+    // Public embed
     if (!cfg.silentMode) {
       const publicEmbed = new EmbedBuilder()
         .setColor(0xFEE75C)
@@ -152,4 +152,80 @@ module.exports = {
           `**${emojis.reason} Reason:** ${reason}\n` +
           `**${emojis.warnings} Total:** \`${totalWarnings}\``
         )
-        .setTh
+        .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
+        .setFooter({
+          text: `Warning ID: #${warningId} ${emojis.dot} Powered by Dynamite Music`,
+          iconURL: client.user.displayAvatarURL({ dynamic: true, size: 64 })
+        })
+        .setTimestamp();
+
+      if (isSlash) {
+        await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
+        setTimeout(() => context.deleteReply().catch(() => {}), 5000);
+      } else {
+        const sentMsg = await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
+        setTimeout(() => sentMsg.delete().catch(() => {}), 5000);
+      }
+    }
+
+    // Log
+    await sendLog(client, 'moderation', {
+      emoji: emojis.warn,
+      title: 'User Warned',
+      subtitle: 'A user was warned',
+      fields: [
+        { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
+        { name: '🛡️ Moderator', value: `${moderatorTag} (${moderatorId})` },
+        { name: '📝 Reason', value: reason },
+        { name: '🆔 ID', value: `#${warningId}` },
+        { name: '📊 Total', value: `${totalWarnings}` },
+      ],
+    });
+
+    // ===== AUTO-ACTION (RULES) =====
+    try {
+      const rules = (cfg.rules || []).filter(r => r.enabled).sort((a, b) => a.warnings - b.warnings);
+      if (rules.length === 0) return;
+
+      const member = await guild.members.fetch(targetId).catch(() => null);
+      if (!member) return;
+
+      // Find the highest triggered rule
+      let triggeredRule = null;
+      for (const rule of rules) {
+        if (totalWarnings >= rule.warnings) {
+          triggeredRule = rule;
+        }
+      }
+
+      if (!triggeredRule) return;
+
+      const action = triggeredRule.action;
+      const duration = triggeredRule.duration;
+
+      if (action === 'ban') {
+        await member.ban({ reason: `Auto-ban: ${totalWarnings} warnings` }).catch(() => {});
+      } else if (action === 'kick') {
+        await member.kick(`Auto-kick: ${totalWarnings} warnings`).catch(() => {});
+      } else if (action === 'mute') {
+        const ms = (duration || 60) * 60 * 1000;
+        await member.timeout(ms, `Auto-mute: ${totalWarnings} warnings`).catch(() => {});
+      }
+
+      // Log auto-action
+      await sendLog(client, 'moderation', {
+        emoji: action === 'ban' ? emojis.ban : action === 'kick' ? emojis.kick : emojis.mute,
+        title: `Auto-${action.charAt(0).toUpperCase() + action.slice(1)} Triggered`,
+        subtitle: `User reached ${totalWarnings} warnings`,
+        fields: [
+          { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
+          { name: '📊 Warnings', value: `${totalWarnings}` },
+          { name: '🎯 Action', value: action },
+          ...(duration ? [{ name: '⏱️ Duration', value: `${duration} minutes` }] : []),
+        ],
+      });
+    } catch (err) {
+      console.error('[warn] Auto-action error:', err.message);
+    }
+  },
+};
