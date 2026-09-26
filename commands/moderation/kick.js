@@ -35,6 +35,9 @@ module.exports = {
       client = context.client;
       guild = context.guild;
     } else {
+      // Delete user's command message (after 500ms)
+      setTimeout(() => context.delete().catch(() => {}), 500);
+
       if (!context.member.permissions.has('KickMembers')) {
         const msg = await context.reply(`${emojis.error} You do not have permission!`);
         setTimeout(() => msg.delete().catch(() => {}), 3000);
@@ -84,7 +87,7 @@ module.exports = {
         .setTitle(`${emojis.kick} You Have Been Kicked`)
         .setDescription(`You have been kicked from **${guild.name}**.`)
         .addFields(
-          { name: '📝 Reason', value: `\`\`\`${reason}\`\`\``, inline: false }
+          { name: `${emojis.reason} Reason`, value: `\`\`\`${reason}\`\`\``, inline: false }
         )
         .setFooter({ text: 'Powered by Dynamite Music' })
         .setTimestamp();
@@ -111,7 +114,7 @@ module.exports = {
       .setTitle(`${emojis.kick} User Kicked`)
       .setDescription(
         `> **${user.tag}** has been kicked.\n\n` +
-        `**Reason:** ${reason}`
+        `**${emojis.reason} Reason:** ${reason}`
       )
       .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
       .setFooter({
