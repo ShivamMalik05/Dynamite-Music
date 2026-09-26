@@ -22,7 +22,6 @@ module.exports = {
     party: '<:party:1553320430448812093>',
     smile: '<:smile:1553320445825257523>',
     dot: '<:dot:1553315102994862181>',
-    // Common aliases
     user: '<:person:1553314404131541022>',
     channel: '<:home:1553314870806708334>',
     time: '<:time:1553314147398189076>',
@@ -34,8 +33,6 @@ module.exports = {
     server: '<:home:1553314870806708334>',
     bot: '<:info:1553314452001136660>',
   },
-
-  // ===== MODERATION =====
   moderation: {
     ban: '<:mod:1553314932630749225>',
     kick: '<:mod:1553314932630749225>',
@@ -56,8 +53,6 @@ module.exports = {
     channel: '<:home:1553314870806708334>',
     duration: '<:time:1553314147398189076>',
   },
-
-  // ===== UTILITY =====
   utility: {
     ping: '<:stats:1553314228683804712>',
     user: '<:person:1553314404131541022>',
@@ -69,8 +64,6 @@ module.exports = {
     setlog: '<:announce:1553315353894068345>',
     embedbuilder: '<:message:1553314600316047430>',
   },
-
-  // ===== FUN =====
   fun: {
     smile: '<:smile:1553320445825257523>',
     party: '<:party:1553320430448812093>',
@@ -78,8 +71,6 @@ module.exports = {
     fire: '<:fire:1553320414774824972>',
     heart: '<:heart:1553320397657612288>',
   },
-
-  // ===== LOGS =====
   logs: {
     moderation: '<:mod:1553314932630749225>',
     messages: '<:message:1553314600316047430>',
@@ -98,8 +89,6 @@ module.exports = {
     muted: '<:time:1553314147398189076>',
     unmuted: '<:check:1553313775002853446>',
   },
-
-  // ===== EMBED =====
   embed: {
     star: '<:verified:1553315159026573475>',
     chart: '<:stats:1553314228683804712>',
@@ -126,8 +115,6 @@ module.exports = {
     reset: '<:cancel:1553313837187600484>',
     home: '<:home:1553314870806708334>',
   },
-
-  // ===== PERMISSIONS =====
   permission: {
     shield: '<:mod:1553314932630749225>',
     admin: '<:admin:1553314992751771730>',
