@@ -1,45 +1,10 @@
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
-  EmbedBuilder,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 const { sendLog } = require('../../utils/logger');
-const { checkPermission } = require('../../utils/permissions');
-const fs = require('fs');
-const path = require('path');
-
-const warningsPath = path.join(__dirname, '..', '..', 'data', 'warnings.json');
-const configPath = path.join(__dirname, '..', '..', 'config', 'warnings.js');
-
-function loadWarnings() {
-  if (!fs.existsSync(warningsPath)) return { nextId: 1, warnings: {} };
-  try {
-    const data = JSON.parse(fs.readFileSync(warningsPath, 'utf8'));
-    if (!data.warnings) data.warnings = {};
-    if (!data.nextId) data.nextId = 1;
-    return data;
-  } catch {
-    return { nextId: 1, warnings: {} };
-  }
-}
-
-function saveWarnings(data) {
-  const dir = path.dirname(warningsPath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(warningsPath, JSON.stringify(data, null, 2));
-}
-
-function loadConfig() {
-  try {
-    delete require.cache[require.resolve(configPath)];
-    const c = require(configPath);
-    if (!c.rules) c.rules = [];
-    return c;
-  } catch {
-    return { rules: [], silentMode: false, customDM: {} };
-  }
-}
+const core = require('../../core');
 
 module.exports = {
   name: 'warn',
@@ -55,11 +20,13 @@ module.exports = {
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(context, args) {
-    if (!(await checkPermission(context, 'warn'))) return;
+    // Permission check
+    if (!(await core.permissions.checkPermission(context, 'warn'))) return;
 
     const isSlash = context.isChatInputCommand && context.isChatInputCommand();
     let targetUser, targetId, moderatorTag, moderatorId, reason, client, guild;
 
+    // Parse input
     if (isSlash) {
       targetUser = context.options.getUser('user');
       targetId = targetUser.id;
@@ -96,76 +63,43 @@ module.exports = {
       guild = context.guild;
     }
 
-    // Save warning
-    const data = loadWarnings();
-    const warningId = data.nextId;
-    data.nextId += 1;
+    // ===== ADD WARNING (using core) =====
+    const result = core.warnings.addWarning(targetId, reason, moderatorTag, moderatorId);
+    const warningId = result.id;
+    const totalWarnings = result.total;
 
-    if (!data.warnings[targetId]) data.warnings[targetId] = [];
+    // ===== LOAD CONFIG =====
+    const cfg = core.config.loadWarnings();
 
-    data.warnings[targetId].push({
-      id: warningId,
+    // ===== BUILD EMBED (using core) =====
+    const embed = core.embeds.warnEmbed({
+      targetUser,
       reason,
-      moderator: moderatorTag,
-      moderatorId,
-      date: new Date().toISOString(),
+      totalWarnings,
+      warningId,
+      client,
     });
-    saveWarnings(data);
 
-    const totalWarnings = data.warnings[targetId].length;
-    const cfg = loadConfig();
-
-    // Build embed
-    const embed = new EmbedBuilder()
-      .setColor(0xFEE75C)
-      .setAuthor({
-        name: 'Moderation Action',
-        iconURL: client.user.displayAvatarURL({ dynamic: true, size: 128 })
-      })
-      .setTitle(`${emojis.warn} Warning Issued`)
-      .setDescription(
-        `> ${targetUser} has been warned.\n\n` +
-        `**${emojis.reason} Reason:** ${reason}\n` +
-        `**${emojis.warnings} Total:** \`${totalWarnings}\``
-      )
-      .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
-      .setFooter({
-        text: `Warning ID: #${warningId} ${emojis.dot} Powered by Dynamite Music`,
-        iconURL: client.user.displayAvatarURL({ dynamic: true, size: 64 })
-      })
-      .setTimestamp();
-
-    // ===== DM TO TARGET (ALWAYS) =====
+    // ===== DM TO TARGET =====
     try {
-      const dmEmbed = new EmbedBuilder()
-        .setColor(0xFEE75C)
-        .setAuthor({
-          name: `Warning from ${guild.name}`,
-          iconURL: guild.iconURL({ dynamic: true, size: 128 }) || client.user.displayAvatarURL({ dynamic: true, size: 128 })
-        })
-        .setTitle(`${emojis.warn} You Have Been Warned`)
-        .setDescription(
-          (cfg.customDM?.warn || 'You have received a warning in {guild}. Reason: {reason}')
-            .replace('{guild}', guild.name)
-            .replace('{reason}', reason)
-        )
-        .addFields(
-          { name: `${emojis.warnings} Total`, value: `\`${totalWarnings}\``, inline: true },
-          { name: `${emojis.info} ID`, value: `\`#${warningId}\``, inline: true }
-        )
-        .setFooter({ text: 'Powered by Dynamite Music' })
-        .setTimestamp();
-
+      const dmEmbed = core.embeds.warnDMEmbed({
+        guild,
+        reason,
+        totalWarnings,
+        warningId,
+        customMessage: cfg.customDM?.warn,
+        client,
+      });
       await targetUser.send({ embeds: [dmEmbed] });
     } catch (err) {}
 
-    // ===== REPLY (public or ephemeral) =====
+    // ===== REPLY =====
     if (cfg.silentMode) {
-      // Silent mode — ephemeral only (moderator can see)
+      // Silent mode — ephemeral (slash only)
       if (isSlash) {
         await context.reply({ embeds: [embed], ephemeral: true });
       } else {
-        // Prefix — DM the moderator (since prefix can't be ephemeral)
+        // Prefix — DM moderator
         try {
           await context.author.send({
             content: `${emojis.info} Silent warning issued to **${targetUser.tag}**`,
@@ -174,7 +108,7 @@ module.exports = {
         } catch {}
       }
     } else {
-      // Normal mode — public embed
+      // Normal mode
       if (isSlash) {
         await context.reply({ content: `${targetUser}`, embeds: [embed] });
         setTimeout(() => context.deleteReply().catch(() => {}), 5000);
@@ -198,41 +132,26 @@ module.exports = {
       ],
     });
 
-    // ===== AUTO-ACTION =====
+    // ===== AUTO-ACTION (using core) =====
     try {
-      const rules = (cfg.rules || []).filter(r => r.enabled).sort((a, b) => a.warnings - b.warnings);
-      if (rules.length === 0) return;
+      const rule = core.autoAction.getTriggeredRule(totalWarnings);
+      if (!rule) return;
 
       const member = await guild.members.fetch(targetId).catch(() => null);
       if (!member) return;
 
-      let triggeredRule = null;
-      for (const rule of rules) {
-        if (totalWarnings >= rule.warnings) triggeredRule = rule;
-      }
-      if (!triggeredRule) return;
-
-      const action = triggeredRule.action;
-      const duration = triggeredRule.duration;
-
-      if (action === 'ban') {
-        await member.ban({ reason: `Auto-ban: ${totalWarnings} warnings` }).catch(() => {});
-      } else if (action === 'kick') {
-        await member.kick(`Auto-kick: ${totalWarnings} warnings`).catch(() => {});
-      } else if (action === 'mute') {
-        const ms = (duration || 60) * 60 * 1000;
-        await member.timeout(ms, `Auto-mute: ${totalWarnings} warnings`).catch(() => {});
-      }
+      const actionResult = await core.autoAction.applyAction(member, rule, totalWarnings);
+      if (!actionResult.success) return;
 
       await sendLog(client, 'autoaction', {
-        emoji: action === 'ban' ? emojis.ban : action === 'kick' ? emojis.kick : emojis.mute,
-        title: `Auto-${action.charAt(0).toUpperCase() + action.slice(1)} Triggered`,
+        emoji: actionResult.action === 'ban' ? emojis.ban : actionResult.action === 'kick' ? emojis.kick : emojis.mute,
+        title: `Auto-${actionResult.action.charAt(0).toUpperCase() + actionResult.action.slice(1)} Triggered`,
         subtitle: `User reached ${totalWarnings} warnings`,
         fields: [
           { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
           { name: '📊 Warnings', value: `${totalWarnings}` },
-          { name: '🎯 Action', value: action },
-          ...(duration ? [{ name: '⏱️ Duration', value: `${duration} minutes` }] : []),
+          { name: '🎯 Action', value: actionResult.action },
+          ...(actionResult.duration ? [{ name: '⏱️ Duration', value: `${actionResult.duration} minutes` }] : []),
         ],
       });
     } catch (err) {
