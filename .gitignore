@@ -1,26 +1,76 @@
+# ============================================
 # Dependencies
+# ============================================
 node_modules/
+package-lock.json
 
-# Environment variables
+# ============================================
+# Environment Variables (SECRETS)
+# ============================================
 .env
 .env.local
 .env.*.local
 
-# Config files
-config.json
+# ============================================
+# Data (preserve on VPS - NOT in GitHub)
+# ============================================
+data/
+data/warnings.json
+data/warnings-history.json
+.backups/
 
+# ============================================
+# Config (preserve on VPS - NOT in GitHub)
+# ============================================
+config/logs.js
+config/owners.js
+config/permissions.js
+config/warnings.js
+
+# ============================================
 # Logs
+# ============================================
 *.log
 npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+pm2/
 
-# OS files
+# ============================================
+# OS Files
+# ============================================
 .DS_Store
 Thumbs.db
+desktop.ini
 
+# ============================================
 # IDE
+# ============================================
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
 
-# Runtime data
-data/warnings.json
-config.json
+# ============================================
+# Temporary Files
+# ============================================
+*.tmp
+*.temp
+.temp/
+temp/
+
+# ============================================
+# Runtime
+# ============================================
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# ============================================
+# Coverage
+# ============================================
+coverage/
+.nyc_output/
