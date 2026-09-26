@@ -3,7 +3,6 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ButtonStyle,
 } = require('discord.js');
 const emojis = require('../../../emojis/emojis');
 const { sendLog } = require('../../../utils/logger');
@@ -22,7 +21,15 @@ const configPath = path.join(__dirname, '..', '..', '..', 'config', 'warnings.js
 function loadConfig() {
   try {
     delete require.cache[require.resolve(configPath)];
-    return require(configPath);
+    const config = require(configPath);
+    // Ensure all fields exist
+    if (!config.rules) config.rules = [];
+    if (!config.autoDelete) config.autoDelete = { enabled: false, days: 30 };
+    if (!config.decay) config.decay = { enabled: false, days: 7, factor: 0.5 };
+    if (!config.notify) config.notify = { enabled: false };
+    if (config.silentMode === undefined) config.silentMode = false;
+    if (!config.customDM) config.customDM = {};
+    return config;
   } catch {
     return {
       rules: [],
@@ -115,7 +122,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // SET DAYS
+  // SET DAYS MODAL
   if (id === 'aa_set_autodelete_days') {
     const modal = new ModalBuilder().setCustomId('aa_modal_autodelete_days').setTitle('Auto-Delete Days');
     modal.addComponents(
@@ -141,7 +148,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // ADD RULE
+  // ADD RULE MODAL
   if (id === 'aa_add_rule') {
     const modal = new ModalBuilder().setCustomId('aa_modal_add_rule').setTitle('Add Auto-Action Rule');
     modal.addComponents(
@@ -159,7 +166,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // DELETE RULE
+  // DELETE RULE MODAL
   if (id === 'aa_delete_rule') {
     const modal = new ModalBuilder().setCustomId('aa_modal_delete_rule').setTitle('Delete Rule');
     modal.addComponents(
@@ -171,7 +178,7 @@ async function handleButton(interaction, client) {
     return true;
   }
 
-  // TOGGLE RULE
+  // TOGGLE RULE MODAL
   if (id === 'aa_toggle_rule') {
     const modal = new ModalBuilder().setCustomId('aa_modal_toggle_rule').setTitle('Toggle Rule');
     modal.addComponents(
@@ -254,8 +261,11 @@ async function handleModal(interaction, client) {
       return interaction.reply({ content: `${emojis.error} Mute requires duration.`, ephemeral: true });
     }
 
-    const newId = Math.max(0, ...(config.rules || []).map(r => r.id)) + 1;
-    const newPriority = Math.max(0, ...(config.rules || []).map(r => r.priority)) + 1;
+    // Ensure rules array exists
+    if (!config.rules) config.rules = [];
+
+    const newId = Math.max(0, ...config.rules.map(r => r.id)) + 1;
+    const newPriority = Math.max(0, ...config.rules.map(r => r.priority)) + 1;
 
     config.rules.push({
       id: newId,
@@ -274,12 +284,13 @@ async function handleModal(interaction, client) {
 
   // DELETE RULE
   if (id === 'aa_modal_delete_rule') {
+    if (!config.rules) config.rules = [];
     const ruleId = parseInt(interaction.fields.getTextInputValue('rule_id'));
     const idx = config.rules.findIndex(r => r.id === ruleId);
     if (idx === -1) {
       return interaction.reply({ content: `${emojis.error} Rule not found.`, ephemeral: true });
     }
-    const removed = config.rules.splice(idx, 1)[0];
+    config.rules.splice(idx, 1);
     saveConfig(config);
     await interaction.reply({ content: `${emojis.success} Rule #${ruleId} deleted.`, ephemeral: true });
     return true;
@@ -287,6 +298,7 @@ async function handleModal(interaction, client) {
 
   // TOGGLE RULE
   if (id === 'aa_modal_toggle_rule') {
+    if (!config.rules) config.rules = [];
     const ruleId = parseInt(interaction.fields.getTextInputValue('rule_id'));
     const rule = config.rules.find(r => r.id === ruleId);
     if (!rule) {
