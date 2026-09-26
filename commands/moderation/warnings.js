@@ -1,6 +1,12 @@
 const {
   SlashCommandBuilder,
   PermissionFlagsBits,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 const { sendLog } = require('../../utils/logger');
@@ -26,6 +32,85 @@ function saveWarnings(data) {
   const dir = path.dirname(warningsPath);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(warningsPath, JSON.stringify(data, null, 2));
+}
+
+function makeSep() {
+  try {
+    const sep = new SeparatorBuilder();
+    if (typeof sep.setSpacing === 'function') sep.setSpacing(1);
+    if (typeof sep.setDivider === 'function') sep.setDivider(true);
+    return sep;
+  } catch {
+    return { type: 14, divider: true, spacing: 1 };
+  }
+}
+
+// ===== BUILD HISTORY PANEL (ALL USERS) =====
+async function buildHistoryPanel(data, page, client, guild) {
+  const allWarnings = [];
+  for (const [userId, warnings] of Object.entries(data.warnings)) {
+    for (const w of warnings) {
+      allWarnings.push({ ...w, userId });
+    }
+  }
+  allWarnings.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+  const perPage = 10;
+  const totalPages = Math.max(1, Math.ceil(allWarnings.length / perPage));
+  const currentPage = Math.min(Math.max(1, page), totalPages);
+  const start = (currentPage - 1) * perPage;
+  const pageEntries = allWarnings.slice(start, start + perPage);
+
+  let listText = '';
+  if (pageEntries.length === 0) {
+    listText = '*No warnings found*';
+  } else {
+    for (const w of pageEntries) {
+      let userTag = 'Unknown';
+      try {
+        const member = await guild.members.fetch(w.userId).catch(() => null);
+        if (member) userTag = member.user.tag;
+      } catch {}
+
+      listText += `**#${w.id}** • ${userTag}\n`;
+      listText += `└ Reason: ${w.reason}\n`;
+      listText += `└ Moderator: ${w.moderator}\n`;
+      listText += `└ <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>\n\n`;
+    }
+  }
+
+  const container = new ContainerBuilder()
+    .setAccentColor(0xFEE75C)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# ${emojis.history} Warning History\n` +
+        `**All warnings in ${guild.name}**`
+      )
+    )
+    .addSeparatorComponents(makeSep())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `**Total Warnings:** ${allWarnings.length}\n` +
+        `**Page:** ${currentPage} / ${totalPages}`
+      )
+    )
+    .addSeparatorComponents(makeSep())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(listText.slice(0, 3000))
+    )
+    .addSeparatorComponents(makeSep())
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`)
+    );
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`warnhistory_prev_${currentPage}`).setLabel('Previous').setEmoji('⬅️').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === 1),
+    new ButtonBuilder().setCustomId(`warnhistory_next_${currentPage}`).setLabel('Next').setEmoji('➡️').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === totalPages),
+    new ButtonBuilder().setCustomId(`warnhistory_refresh`).setLabel('Refresh').setEmoji('🔄').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId(`warnhistory_close`).setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+  );
+
+  return [container, row];
 }
 
 module.exports = {
@@ -56,9 +141,7 @@ module.exports = {
           opt.setName('range').setDescription('Remove by range (e.g. 1-5)').setRequired(false)))
     .addSubcommand(sub =>
       sub.setName('history')
-        .setDescription('View warning history')
-        .addUserOption(opt =>
-          opt.setName('user').setDescription('User').setRequired(true)))
+        .setDescription('View all warnings in the server'))
     .addSubcommand(sub =>
       sub.setName('stats')
         .setDescription('View server warning stats')),
@@ -146,9 +229,6 @@ module.exports = {
         }
         const start = parseInt(match[1]);
         const end = parseInt(match[2]);
-        if (start < 1 || end < start) {
-          return context.reply({ content: `${emojis.error} Invalid range.`, ephemeral: true });
-        }
         const toRemove = warnings.slice(start - 1, end);
         if (toRemove.length === 0) {
           return context.reply({ content: `${emojis.error} No warnings in that range.`, ephemeral: true });
@@ -171,7 +251,6 @@ module.exports = {
 
       await context.reply({ content: replyText, ephemeral: true });
 
-      // Log
       await sendLog(client, 'moderation', {
         emoji: emojis.purge,
         title: 'Warnings Removed',
@@ -187,29 +266,13 @@ module.exports = {
       return;
     }
 
-    // ===== HISTORY =====
+    // ===== HISTORY (ALL USERS) =====
     if (sub === 'history') {
-      const user = context.options.getUser('user');
-      const warnings = data.warnings[user.id] || [];
-
-      if (warnings.length === 0) {
-        return context.reply(`${emojis.info} **${user.tag}** has no warning history.`);
-      }
-
-      const lines = warnings.map(w => 
-        `**#${w.id}** — ${w.reason}\n└ by ${w.moderator} • <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>`
-      );
-
-      const text = `${emojis.history} **${user.tag}** — Warning History\n\n${lines.join('\n\n')}`;
-
-      if (text.length > 2000) {
-        return context.reply({
-          content: `${emojis.warning} Too many entries. Use \`/warnlogs user @${user.username}\`.`,
-          ephemeral: true,
-        });
-      }
-
-      return context.reply(text);
+      const components = await buildHistoryPanel(data, 1, client, guild);
+      return context.reply({
+        components,
+        flags: 1 << 15 | 1 << 6,
+      });
     }
 
     // ===== STATS =====
@@ -260,5 +323,41 @@ module.exports = {
         `**Top Moderators:**\n${topMods}`
       );
     }
+  },
+
+  async handleButton(interaction, client) {
+    const id = interaction.customId;
+    if (!id.startsWith('warnhistory_')) return false;
+
+    const data = loadWarnings();
+    const guild = interaction.guild;
+    const page = 1;
+
+    if (id === 'warnhistory_close') {
+      await interaction.update({ components: [] });
+      return true;
+    }
+
+    if (id.startsWith('warnhistory_prev_')) {
+      const current = parseInt(id.replace('warnhistory_prev_', ''));
+      const components = await buildHistoryPanel(data, current - 1, client, guild);
+      await interaction.update({ components, flags: 1 << 15 });
+      return true;
+    }
+
+    if (id.startsWith('warnhistory_next_')) {
+      const current = parseInt(id.replace('warnhistory_next_', ''));
+      const components = await buildHistoryPanel(data, current + 1, client, guild);
+      await interaction.update({ components, flags: 1 << 15 });
+      return true;
+    }
+
+    if (id === 'warnhistory_refresh') {
+      const components = await buildHistoryPanel(data, 1, client, guild);
+      await interaction.update({ components, flags: 1 << 15 });
+      return true;
+    }
+
+    return false;
   },
 };
