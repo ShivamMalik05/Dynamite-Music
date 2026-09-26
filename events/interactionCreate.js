@@ -31,7 +31,8 @@ module.exports = {
         if (id.startsWith('help_')) {
           const help = client.slashCommands.get('help');
           if (help && help.handleButton) {
-            return await help.handleButton(interaction, client);
+            const handled = await help.handleButton(interaction, client);
+            if (handled) return;
           }
         }
 
@@ -39,7 +40,8 @@ module.exports = {
         if (id.startsWith('warnhistory_')) {
           const warning = client.slashCommands.get('warning');
           if (warning && warning.handleButton) {
-            return await warning.handleButton(interaction, client);
+            const handled = await warning.handleButton(interaction, client);
+            if (handled) return;
           }
         }
 
@@ -47,7 +49,8 @@ module.exports = {
         if (id.startsWith('aa_')) {
           const autoaction = client.slashCommands.get('autoaction');
           if (autoaction && autoaction.handleButton) {
-            return await autoaction.handleButton(interaction, client);
+            const handled = await autoaction.handleButton(interaction, client);
+            if (handled) return;
           }
         }
 
@@ -55,7 +58,8 @@ module.exports = {
         if (id.startsWith('warnlogs_')) {
           const warnlogs = client.slashCommands.get('warnlogs');
           if (warnlogs && warnlogs.handleButton) {
-            return await warnlogs.handleButton(interaction, client);
+            const handled = await warnlogs.handleButton(interaction, client);
+            if (handled) return;
           }
         }
 
@@ -63,7 +67,8 @@ module.exports = {
         if (id.startsWith('sp_')) {
           const setperm = client.slashCommands.get('setperm');
           if (setperm && setperm.handleButton) {
-            return await setperm.handleButton(interaction, client);
+            const handled = await setperm.handleButton(interaction, client);
+            if (handled) return;
           }
         }
 
@@ -91,7 +96,8 @@ module.exports = {
         if (id === 'help_menu') {
           const help = client.slashCommands.get('help');
           if (help && help.handleSelect) {
-            return await help.handleSelect(interaction, client);
+            const handled = await help.handleSelect(interaction, client);
+            if (handled) return;
           }
         }
 
@@ -127,7 +133,6 @@ module.exports = {
       if (interaction.isModalSubmit()) {
         const id = interaction.customId;
 
-        // Autoaction modals
         if (id.startsWith('aa_modal_')) {
           const autoaction = client.slashCommands.get('autoaction');
           if (autoaction && autoaction.handleModal) {
@@ -135,7 +140,6 @@ module.exports = {
           }
         }
 
-        // Embed builder modals
         if (embedbuilder.isEmbedModal(id)) {
           return await embedbuilder.handleModal(interaction, client);
         }
