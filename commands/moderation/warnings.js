@@ -12,7 +12,6 @@ const emojis = require('../../emojis/emojis');
 const { sendLog } = require('../../utils/logger');
 const core = require('../../core');
 
-// ===== SEPARATOR =====
 function makeSep() {
   try {
     const sep = new SeparatorBuilder();
@@ -24,7 +23,6 @@ function makeSep() {
   }
 }
 
-// ===== BUILD WARNINGS LIST =====
 async function buildWarningsPanel(allWarnings, page, client, guild, title = 'All Warnings') {
   const perPage = 10;
   const totalPages = Math.max(1, Math.ceil(allWarnings.length / perPage));
@@ -51,15 +49,11 @@ async function buildWarningsPanel(allWarnings, page, client, guild, title = 'All
   const container = new ContainerBuilder()
     .setAccentColor(0xFEE75C)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${emojis.warn} Warning Manager\n**${title}**`
-      )
+      new TextDisplayBuilder().setContent(`# ${emojis.warn} Warning Manager\n**${title}**`)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `**Total:** \`${allWarnings.length}\` | **Page:** \`${currentPage}/${totalPages}\``
-      )
+      new TextDisplayBuilder().setContent(`**Total:** \`${allWarnings.length}\` | **Page:** \`${currentPage}/${totalPages}\``)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText.slice(0, 3500)))
@@ -84,17 +78,11 @@ module.exports = {
     .setDescription('View and manage user warnings')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
     .addUserOption(opt =>
-      opt.setName('user')
-        .setDescription('User to view warnings for (leave empty for all)')
-        .setRequired(false))
+      opt.setName('user').setDescription('User to view warnings for').setRequired(false))
     .addStringOption(opt =>
-      opt.setName('remove')
-        .setDescription('Remove warnings: number, "1", or "all"')
-        .setRequired(false))
+      opt.setName('remove').setDescription('Remove: number or "all"').setRequired(false))
     .addStringOption(opt =>
-      opt.setName('reason')
-        .setDescription('Remove by reason (optional)')
-        .setRequired(false)),
+      opt.setName('reason').setDescription('Filter by reason').setRequired(false)),
 
   async execute(context) {
     if (!context.isChatInputCommand || !context.isChatInputCommand()) {
@@ -118,7 +106,7 @@ module.exports = {
       } else {
         const count = parseInt(removeOption);
         if (isNaN(count) || count < 1) {
-          return context.reply({ content: `${emojis.error} Invalid remove value. Use a number or "all".`, ephemeral: true });
+          return context.reply({ content: `${emojis.error} Invalid remove value.`, ephemeral: true });
         }
         result = core.warnings.removeWarnings(targetUser.id, { count });
       }
@@ -132,7 +120,6 @@ module.exports = {
         ephemeral: true,
       });
 
-      // Log
       await sendLog(client, 'warn', {
         emoji: emojis.purge,
         title: 'Warnings Removed',
@@ -159,7 +146,6 @@ module.exports = {
       title = 'All Warnings in Server';
     }
 
-    // Optional reason filter
     if (reasonFilter && reasonFilter.trim()) {
       const q = reasonFilter.toLowerCase();
       allWarnings = allWarnings.filter(w => w.reason.toLowerCase().includes(q));
@@ -170,7 +156,6 @@ module.exports = {
     await context.reply({ components, flags: 1 << 15 | 1 << 6 });
   },
 
-  // ===== BUTTON HANDLER (pagination) =====
   async handleButton(interaction, client) {
     const id = interaction.customId;
     if (!id.startsWith('warn_panel_')) return false;
@@ -182,7 +167,6 @@ module.exports = {
       return true;
     }
 
-    // Pagination — rebuild from all warnings
     if (id.startsWith('warn_panel_prev_') || id.startsWith('warn_panel_next_')) {
       const all = core.warnings.getAllWarnings();
       let page = 1;
