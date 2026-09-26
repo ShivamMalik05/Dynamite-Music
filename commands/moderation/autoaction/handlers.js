@@ -22,7 +22,6 @@ function loadConfig() {
   try {
     delete require.cache[require.resolve(configPath)];
     const config = require(configPath);
-    // Ensure all fields exist
     if (!config.rules) config.rules = [];
     if (!config.autoDelete) config.autoDelete = { enabled: false, days: 30 };
     if (!config.decay) config.decay = { enabled: false, days: 7, factor: 0.5 };
@@ -59,7 +58,7 @@ async function handleButton(interaction, client) {
     try {
       await interaction.message.delete();
     } catch {
-      await interaction.update({ content: 'Closed.', components: [] });
+      await interaction.update({ components: [] });
     }
     return true;
   }
@@ -261,7 +260,6 @@ async function handleModal(interaction, client) {
       return interaction.reply({ content: `${emojis.error} Mute requires duration.`, ephemeral: true });
     }
 
-    // Ensure rules array exists
     if (!config.rules) config.rules = [];
 
     const newId = Math.max(0, ...config.rules.map(r => r.id)) + 1;
