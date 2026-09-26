@@ -6,6 +6,7 @@ module.exports = {
   once: false,
   async execute(interaction, client) {
     try {
+      // ===== SLASH COMMANDS =====
       if (interaction.isChatInputCommand()) {
         const command = client.slashCommands.get(interaction.commandName);
         if (!command) return;
@@ -22,59 +23,122 @@ module.exports = {
         return;
       }
 
+      // ===== BUTTONS =====
       if (interaction.isButton()) {
+        const id = interaction.customId;
+
+        // Help buttons
+        if (id.startsWith('help_')) {
+          const help = client.slashCommands.get('help');
+          if (help && help.handleButton) {
+            return await help.handleButton(interaction, client);
+          }
+        }
+
         // Warning history pagination
-        if (interaction.customId.startsWith('warnhistory_')) {
+        if (id.startsWith('warnhistory_')) {
           const warning = client.slashCommands.get('warning');
-          if (warning && warning.handleButton) return await warning.handleButton(interaction, client);
+          if (warning && warning.handleButton) {
+            return await warning.handleButton(interaction, client);
+          }
         }
 
-        // Autoaction
-        if (interaction.customId.startsWith('aa_')) {
+        // Autoaction buttons
+        if (id.startsWith('aa_')) {
           const autoaction = client.slashCommands.get('autoaction');
-          if (autoaction && autoaction.handleButton) return await autoaction.handleButton(interaction, client);
+          if (autoaction && autoaction.handleButton) {
+            return await autoaction.handleButton(interaction, client);
+          }
         }
 
-        // Warnlogs
-        if (interaction.customId.startsWith('warnlogs_')) {
+        // Warnlogs buttons
+        if (id.startsWith('warnlogs_')) {
           const warnlogs = client.slashCommands.get('warnlogs');
-          if (warnlogs && warnlogs.handleButton) return await warnlogs.handleButton(interaction, client);
+          if (warnlogs && warnlogs.handleButton) {
+            return await warnlogs.handleButton(interaction, client);
+          }
         }
 
-        // setperm
-        if (interaction.customId.startsWith('sp_')) {
+        // Setperm buttons
+        if (id.startsWith('sp_')) {
           const setperm = client.slashCommands.get('setperm');
-          if (setperm && setperm.handleButton) return await setperm.handleButton(interaction, client);
+          if (setperm && setperm.handleButton) {
+            return await setperm.handleButton(interaction, client);
+          }
         }
 
-        // Existing
-        if (embedbuilder.isRoleButton(interaction.customId)) return await embedbuilder.handleRoleButton(interaction);
-        if (setlog.isSetlogButton(interaction.customId)) return await setlog.handleButton(interaction, client);
-        if (embedbuilder.isEmbedButton(interaction.customId)) return await embedbuilder.handleButton(interaction, client);
+        // Embed builder role buttons
+        if (embedbuilder.isRoleButton(id)) {
+          return await embedbuilder.handleRoleButton(interaction);
+        }
+
+        // Setlog buttons
+        if (setlog.isSetlogButton(id)) {
+          return await setlog.handleButton(interaction, client);
+        }
+
+        // Embed builder buttons
+        if (embedbuilder.isEmbedButton(id)) {
+          return await embedbuilder.handleButton(interaction, client);
+        }
       }
 
+      // ===== STRING SELECT MENUS =====
       if (interaction.isStringSelectMenu()) {
-        if (setlog.isSetlogSelect(interaction.customId)) return await setlog.handleSelect(interaction);
-        if (embedbuilder.isEmbedSelect(interaction.customId)) return await embedbuilder.handleSelect(interaction, client);
+        const id = interaction.customId;
+
+        // Help menu
+        if (id === 'help_menu') {
+          const help = client.slashCommands.get('help');
+          if (help && help.handleSelect) {
+            return await help.handleSelect(interaction, client);
+          }
+        }
+
+        // Setlog menus
+        if (setlog.isSetlogSelect(id)) {
+          return await setlog.handleSelect(interaction);
+        }
+
+        // Embed builder menus
+        if (embedbuilder.isEmbedSelect(id)) {
+          return await embedbuilder.handleSelect(interaction, client);
+        }
       }
 
+      // ===== USER / ROLE SELECT MENUS =====
       if (interaction.isUserSelectMenu() || interaction.isRoleSelectMenu()) {
         if (interaction.customId.startsWith('sp_select_')) {
           const setperm = client.slashCommands.get('setperm');
-          if (setperm && setperm.handleSelect) return await setperm.handleSelect(interaction, client);
+          if (setperm && setperm.handleSelect) {
+            return await setperm.handleSelect(interaction, client);
+          }
         }
       }
 
+      // ===== CHANNEL SELECT MENUS =====
       if (interaction.isChannelSelectMenu()) {
-        if (setlog.isSetlogChannel(interaction.customId)) return await setlog.handleChannelSelect(interaction);
+        if (setlog.isSetlogChannel(interaction.customId)) {
+          return await setlog.handleChannelSelect(interaction);
+        }
       }
 
+      // ===== MODALS =====
       if (interaction.isModalSubmit()) {
-        if (interaction.customId.startsWith('aa_modal_')) {
+        const id = interaction.customId;
+
+        // Autoaction modals
+        if (id.startsWith('aa_modal_')) {
           const autoaction = client.slashCommands.get('autoaction');
-          if (autoaction && autoaction.handleModal) return await autoaction.handleModal(interaction, client);
+          if (autoaction && autoaction.handleModal) {
+            return await autoaction.handleModal(interaction, client);
+          }
         }
-        if (embedbuilder.isEmbedModal(interaction.customId)) return await embedbuilder.handleModal(interaction, client);
+
+        // Embed builder modals
+        if (embedbuilder.isEmbedModal(id)) {
+          return await embedbuilder.handleModal(interaction, client);
+        }
       }
     } catch (error) {
       console.error('Interaction error:', error);
@@ -82,7 +146,9 @@ module.exports = {
         if (!interaction.replied && !interaction.deferred) {
           await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
         }
-      } catch (e) {}
+      } catch (e) {
+        console.error('Failed to reply:', e.message);
+      }
     }
   },
 };
