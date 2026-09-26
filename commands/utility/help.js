@@ -335,17 +335,30 @@ module.exports = {
     const id = interaction.customId;
     if (!id.startsWith('help_')) return false;
 
+    // ===== CLOSE =====
     if (id === 'help_close') {
-      await interaction.update({ components: [] });
+      try {
+        // Try to delete the message first
+        await interaction.message.delete();
+      } catch (err) {
+        // Fallback: update with minimal content
+        try {
+          await interaction.update({ content: 'Help menu closed.', components: [], embeds: [] });
+        } catch (err2) {
+          console.error('Close fallback failed:', err2.message);
+        }
+      }
       return true;
     }
 
+    // ===== HOME =====
     if (id === 'help_home') {
       const components = buildFullView(client, 'intro');
       await interaction.update({ components, flags: 1 << 15 });
       return true;
     }
 
+    // ===== ALL COMMANDS =====
     if (id === 'help_all') {
       const components = buildFullView(client, 'all');
       await interaction.update({ components, flags: 1 << 15 });
