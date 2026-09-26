@@ -57,23 +57,22 @@ module.exports = {
       client = context.client;
       guild = context.guild;
     } else {
-      // Delete user's command message (after 500ms)
-      setTimeout(() => context.delete().catch(() => {}), 500);
+      setTimeout(() => context.delete().catch(() => {}), 5000);
 
       if (!context.member.permissions.has('ModerateMembers')) {
         const msg = await context.reply(`${emojis.error} You do not have permission!`);
-        setTimeout(() => msg.delete().catch(() => {}), 3000);
+        setTimeout(() => msg.delete().catch(() => {}), 5000);
         return;
       }
       const member = context.mentions.members.first();
       if (!member) {
         const msg = await context.reply(`${emojis.error} Mention a user to warn!`);
-        setTimeout(() => msg.delete().catch(() => {}), 3000);
+        setTimeout(() => msg.delete().catch(() => {}), 5000);
         return;
       }
       if (member.id === context.author.id) {
         const msg = await context.reply(`${emojis.error} You cannot warn yourself!`);
-        setTimeout(() => msg.delete().catch(() => {}), 3000);
+        setTimeout(() => msg.delete().catch(() => {}), 5000);
         return;
       }
       targetUser = member.user;
@@ -85,7 +84,6 @@ module.exports = {
       guild = context.guild;
     }
 
-    // Save warning
     const data = loadWarnings();
     const warningId = data.nextId;
     data.nextId += 1;
@@ -103,7 +101,7 @@ module.exports = {
 
     const totalWarnings = data.warnings[targetId].length;
 
-    // ===== DM TO TARGET (moderator hidden) =====
+    // DM to target
     try {
       const dmEmbed = new EmbedBuilder()
         .setColor(0xFEE75C)
@@ -116,7 +114,7 @@ module.exports = {
         .addFields(
           { name: `${emojis.reason} Reason`, value: `\`\`\`${reason}\`\`\``, inline: false },
           { name: `${emojis.warnings} Total`, value: `\`${totalWarnings}\``, inline: true },
-          { name: '🆔 ID', value: `\`#${warningId}\``, inline: true }
+          { name: `${emojis.info} ID`, value: `\`#${warningId}\``, inline: true }
         )
         .setFooter({ text: 'Powered by Dynamite Music' })
         .setTimestamp();
@@ -124,7 +122,7 @@ module.exports = {
       await targetUser.send({ embeds: [dmEmbed] });
     } catch (err) {}
 
-    // ===== PUBLIC EMBED (chhota, moderator hidden) =====
+    // Public embed
     const publicEmbed = new EmbedBuilder()
       .setColor(0xFEE75C)
       .setAuthor({
@@ -139,7 +137,7 @@ module.exports = {
       )
       .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
       .setFooter({
-        text: `Warning ID: #${warningId} • Powered by Dynamite Music`,
+        text: `Warning ID: #${warningId} ${emojis.dot} Powered by Dynamite Music`,
         iconURL: client.user.displayAvatarURL({ dynamic: true, size: 64 })
       })
       .setTimestamp();
@@ -152,7 +150,7 @@ module.exports = {
       setTimeout(() => sentMsg.delete().catch(() => {}), 3000);
     }
 
-    // ===== LOG (moderator visible) =====
+    // Log
     await sendLog(client, 'moderation', {
       emoji: emojis.warn,
       title: 'User Warned',
@@ -165,25 +163,5 @@ module.exports = {
         { name: '📊 Total', value: `${totalWarnings}` },
       ],
     });
-
-    // ===== AUTO-ACTION =====
-    try {
-      const configPath = path.join(__dirname, '..', '..', 'config', 'warnings.js');
-      delete require.cache[require.resolve(configPath)];
-      const cfg = require(configPath);
-      if (cfg.autoAction?.enabled) {
-        const member = await guild.members.fetch(targetId).catch(() => null);
-        if (member) {
-          if (cfg.autoAction.banAt && totalWarnings >= cfg.autoAction.banAt) {
-            await member.ban({ reason: `Auto-ban: ${totalWarnings} warnings` });
-          } else if (cfg.autoAction.kickAt && totalWarnings >= cfg.autoAction.kickAt) {
-            await member.kick(`Auto-kick: ${totalWarnings} warnings`);
-          } else if (cfg.autoAction.muteAt && totalWarnings >= cfg.autoAction.muteAt) {
-            const duration = (cfg.autoAction.muteDuration || 60) * 60 * 1000;
-            await member.timeout(duration, `Auto-mute: ${totalWarnings} warnings`);
-          }
-        }
-      }
-    } catch (err) {}
   },
 };
