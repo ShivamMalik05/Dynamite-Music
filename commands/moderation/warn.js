@@ -63,7 +63,7 @@ module.exports = {
       guild = context.guild;
     }
 
-    // ===== ADD WARNING (using core) =====
+    // ===== ADD WARNING (core) =====
     const result = core.warnings.addWarning(targetId, reason, moderatorTag, moderatorId);
     const warningId = result.id;
     const totalWarnings = result.total;
@@ -71,7 +71,7 @@ module.exports = {
     // ===== LOAD CONFIG =====
     const cfg = core.config.loadWarnings();
 
-    // ===== BUILD EMBED (using core) =====
+    // ===== BUILD EMBED (core) =====
     const embed = core.embeds.warnEmbed({
       targetUser,
       reason,
@@ -95,11 +95,9 @@ module.exports = {
 
     // ===== REPLY =====
     if (cfg.silentMode) {
-      // Silent mode — ephemeral (slash only)
       if (isSlash) {
         await context.reply({ embeds: [embed], ephemeral: true });
       } else {
-        // Prefix — DM moderator
         try {
           await context.author.send({
             content: `${emojis.info} Silent warning issued to **${targetUser.tag}**`,
@@ -108,7 +106,6 @@ module.exports = {
         } catch {}
       }
     } else {
-      // Normal mode
       if (isSlash) {
         await context.reply({ content: `${targetUser}`, embeds: [embed] });
         setTimeout(() => context.deleteReply().catch(() => {}), 5000);
@@ -132,43 +129,43 @@ module.exports = {
       ],
     });
 
-// ===== AUTO-ACTION =====
-try {
-  console.log(`[warn] Checking auto-action for ${totalWarnings} warnings...`);
+    // ===== AUTO-ACTION (core) =====
+    try {
+      console.log(`[warn] Checking auto-action for ${totalWarnings} warnings...`);
 
-  const rule = core.autoAction.getTriggeredRule(totalWarnings);
-  if (!rule) {
-    console.log('[warn] No rule triggered');
-    return;
-  }
+      const rule = core.autoAction.getTriggeredRule(totalWarnings);
+      if (!rule) {
+        console.log('[warn] No rule triggered');
+        return;
+      }
 
-  const member = await guild.members.fetch(targetId).catch(() => null);
-  if (!member) {
-    console.log('[warn] Member not found');
-    return;
-  }
+      const member = await guild.members.fetch(targetId).catch(() => null);
+      if (!member) {
+        console.log('[warn] Member not found');
+        return;
+      }
 
-  const actionResult = await core.autoAction.applyAction(member, rule, totalWarnings);
+      const actionResult = await core.autoAction.applyAction(member, rule, totalWarnings);
 
-  if (!actionResult.success) {
-    console.log('[warn] Auto-action failed:', actionResult.error);
-    return;
-  }
+      if (!actionResult.success) {
+        console.log('[warn] Auto-action failed:', actionResult.error);
+        return;
+      }
 
-  // Log auto-action
-  await sendLog(client, 'autoaction', {
-    emoji: actionResult.action === 'ban' ? emojis.ban : actionResult.action === 'kick' ? emojis.kick : emojis.mute,
-    title: `Auto-${actionResult.action.charAt(0).toUpperCase() + actionResult.action.slice(1)} Triggered`,
-    subtitle: `User reached ${totalWarnings} warnings`,
-    fields: [
-      { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
-      { name: '📊 Warnings', value: `${totalWarnings}` },
-      { name: '🎯 Action', value: actionResult.action },
-      ...(actionResult.duration ? [{ name: '⏱️ Duration', value: `${actionResult.duration} minutes` }] : []),
-    ],
-  });
-  console.log('[warn] ✅ Auto-action logged');
-} catch (err) {
-  console.error('[warn] Auto-action error:', err.message);
-  console.error(err.stack);
-}
+      await sendLog(client, 'autoaction', {
+        emoji: actionResult.action === 'ban' ? emojis.ban : actionResult.action === 'kick' ? emojis.kick : emojis.mute,
+        title: `Auto-${actionResult.action.charAt(0).toUpperCase() + actionResult.action.slice(1)} Triggered`,
+        subtitle: `User reached ${totalWarnings} warnings`,
+        fields: [
+          { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
+          { name: '📊 Warnings', value: `${totalWarnings}` },
+          { name: '🎯 Action', value: actionResult.action },
+          ...(actionResult.duration ? [{ name: '⏱️ Duration', value: `${actionResult.duration} minutes` }] : []),
+        ],
+      });
+      console.log('[warn] ✅ Auto-action logged');
+    } catch (err) {
+      console.error('[warn] Auto-action error:', err.message);
+    }
+  },
+};
