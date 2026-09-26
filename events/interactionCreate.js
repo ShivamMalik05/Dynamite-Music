@@ -27,11 +27,11 @@ module.exports = {
       if (interaction.isButton()) {
         const id = interaction.customId;
 
-        // Warning Manager buttons (wm_)
-        if (id.startsWith('wm_')) {
-          const warning = client.slashCommands.get('warning');
-          if (warning && warning.handleButton) {
-            const handled = await warning.handleButton(interaction, client);
+        // Warnings panel buttons (warn_panel_)
+        if (id.startsWith('warn_panel_')) {
+          const warnings = client.slashCommands.get('warnings');
+          if (warnings && warnings.handleButton) {
+            const handled = await warnings.handleButton(interaction, client);
             if (handled) return;
           }
         }
@@ -141,14 +141,6 @@ module.exports = {
       // ===== MODALS =====
       if (interaction.isModalSubmit()) {
         const id = interaction.customId;
-
-        // Warning Manager modals (wm_modal_)
-        if (id.startsWith('wm_modal_')) {
-          const warning = client.slashCommands.get('warning');
-          if (warning && warning.handleModal) {
-            return await warning.handleModal(interaction, client);
-          }
-        }
 
         // Autoaction modals (aa_modal_)
         if (id.startsWith('aa_modal_')) {
