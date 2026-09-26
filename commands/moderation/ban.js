@@ -83,6 +83,9 @@ module.exports = {
       client = context.client;
       guild = context.guild;
     } else {
+      // Delete user's command message (after 500ms)
+      setTimeout(() => context.delete().catch(() => {}), 500);
+
       if (!context.member.permissions.has('BanMembers')) {
         const msg = await context.reply(`${emojis.error} You do not have permission!`);
         setTimeout(() => msg.delete().catch(() => {}), 3000);
@@ -94,7 +97,6 @@ module.exports = {
         setTimeout(() => msg.delete().catch(() => {}), 3000);
         return;
       }
-      // Parse: !ban @user [duration] [reason]
       let remaining = args.slice(1);
       if (remaining[0] && parseDuration(remaining[0])) {
         duration = remaining.shift();
@@ -139,8 +141,8 @@ module.exports = {
         .setTitle(`${emojis.ban} You Have Been Banned`)
         .setDescription(`You have been banned from **${guild.name}**.`)
         .addFields(
-          { name: '📝 Reason', value: `\`\`\`${reason}\`\`\``, inline: false },
-          { name: '⏱️ Duration', value: isTemp ? formatDuration(durationMs) : 'Permanent', inline: true }
+          { name: `${emojis.reason} Reason`, value: `\`\`\`${reason}\`\`\``, inline: false },
+          { name: `${emojis.duration} Duration`, value: isTemp ? formatDuration(durationMs) : 'Permanent', inline: true }
         )
         .setFooter({ text: 'Powered by Dynamite Music' })
         .setTimestamp();
@@ -172,7 +174,7 @@ module.exports = {
       saveTempBans(tempBans);
     }
 
-    // Public embed (chhota)
+    // Public embed
     const publicEmbed = new EmbedBuilder()
       .setColor(0xED4245)
       .setAuthor({
@@ -182,8 +184,8 @@ module.exports = {
       .setTitle(`${emojis.ban} User Banned`)
       .setDescription(
         `> **${user.tag}** has been banned.\n\n` +
-        `**Reason:** ${reason}\n` +
-        `**Duration:** ${isTemp ? formatDuration(durationMs) : 'Permanent'}`
+        `**${emojis.reason} Reason:** ${reason}\n` +
+        `**${emojis.duration} Duration:** ${isTemp ? formatDuration(durationMs) : 'Permanent'}`
       )
       .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
       .setFooter({
