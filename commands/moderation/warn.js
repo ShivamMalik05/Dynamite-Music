@@ -39,15 +39,16 @@ module.exports = {
     .addUserOption(option =>
       option.setName('user').setDescription('User to warn').setRequired(true))
     .addStringOption(option =>
-      option.setName('reason').setDescription('Reason').setRequired(false))
+      option.setName('reason').setDescription('Reason for warning').setRequired(false))
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers),
 
   async execute(context, args) {
     if (!(await checkPermission(context, 'warn'))) return;
 
+    const isSlash = context.isChatInputCommand && context.isChatInputCommand();
     let targetUser, targetId, moderatorTag, moderatorId, reason, client, guild;
 
-    if (context.isChatInputCommand && context.isChatInputCommand()) {
+    if (isSlash) {
       targetUser = context.options.getUser('user');
       targetId = targetUser.id;
       moderatorTag = context.user.tag;
@@ -56,12 +57,25 @@ module.exports = {
       client = context.client;
       guild = context.guild;
     } else {
+      // Delete user's command message (after 500ms)
+      setTimeout(() => context.delete().catch(() => {}), 500);
+
       if (!context.member.permissions.has('ModerateMembers')) {
-        return context.reply(`${emojis.error} You do not have permission!`);
+        const msg = await context.reply(`${emojis.error} You do not have permission!`);
+        setTimeout(() => msg.delete().catch(() => {}), 3000);
+        return;
       }
       const member = context.mentions.members.first();
-      if (!member) return context.reply(`${emojis.error} Mention a user to warn!`);
-      if (member.id === context.author.id) return context.reply(`${emojis.error} You cannot warn yourself!`);
+      if (!member) {
+        const msg = await context.reply(`${emojis.error} Mention a user to warn!`);
+        setTimeout(() => msg.delete().catch(() => {}), 3000);
+        return;
+      }
+      if (member.id === context.author.id) {
+        const msg = await context.reply(`${emojis.error} You cannot warn yourself!`);
+        setTimeout(() => msg.delete().catch(() => {}), 3000);
+        return;
+      }
       targetUser = member.user;
       targetId = member.id;
       moderatorTag = context.author.tag;
@@ -71,6 +85,7 @@ module.exports = {
       guild = context.guild;
     }
 
+    // Save warning
     const data = loadWarnings();
     const warningId = data.nextId;
     data.nextId += 1;
@@ -88,7 +103,28 @@ module.exports = {
 
     const totalWarnings = data.warnings[targetId].length;
 
-    // Public embed (chhota)
+    // ===== DM TO TARGET (moderator hidden) =====
+    try {
+      const dmEmbed = new EmbedBuilder()
+        .setColor(0xFEE75C)
+        .setAuthor({
+          name: `Warning from ${guild.name}`,
+          iconURL: guild.iconURL({ dynamic: true, size: 128 }) || client.user.displayAvatarURL({ dynamic: true, size: 128 })
+        })
+        .setTitle(`${emojis.warn} You Have Been Warned`)
+        .setDescription(`You have received a warning in **${guild.name}**.`)
+        .addFields(
+          { name: `${emojis.reason} Reason`, value: `\`\`\`${reason}\`\`\``, inline: false },
+          { name: `${emojis.warnings} Total`, value: `\`${totalWarnings}\``, inline: true },
+          { name: '🆔 ID', value: `\`#${warningId}\``, inline: true }
+        )
+        .setFooter({ text: 'Powered by Dynamite Music' })
+        .setTimestamp();
+
+      await targetUser.send({ embeds: [dmEmbed] });
+    } catch (err) {}
+
+    // ===== PUBLIC EMBED (chhota, moderator hidden) =====
     const publicEmbed = new EmbedBuilder()
       .setColor(0xFEE75C)
       .setAuthor({
@@ -98,8 +134,8 @@ module.exports = {
       .setTitle(`${emojis.warn} Warning Issued`)
       .setDescription(
         `> ${targetUser} has been warned.\n\n` +
-        `**Reason:** ${reason}\n` +
-        `**Total:** \`${totalWarnings}\``
+        `**${emojis.reason} Reason:** ${reason}\n` +
+        `**${emojis.warnings} Total:** \`${totalWarnings}\``
       )
       .setThumbnail(targetUser.displayAvatarURL({ dynamic: true, size: 256 }))
       .setFooter({
@@ -108,36 +144,15 @@ module.exports = {
       })
       .setTimestamp();
 
-    const replyPayload = { content: `${targetUser}`, embeds: [publicEmbed] };
-
-    if (context.isChatInputCommand && context.isChatInputCommand()) {
-      await context.reply(replyPayload);
+    if (isSlash) {
+      await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
+      setTimeout(() => context.deleteReply().catch(() => {}), 3000);
     } else {
-      context.reply(replyPayload);
+      const sentMsg = await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
+      setTimeout(() => sentMsg.delete().catch(() => {}), 3000);
     }
 
-    // DM to target (moderator hidden)
-    const dmEmbed = new EmbedBuilder()
-      .setColor(0xFEE75C)
-      .setAuthor({
-        name: `Warning from ${guild.name}`,
-        iconURL: guild.iconURL({ dynamic: true, size: 128 }) || client.user.displayAvatarURL({ dynamic: true, size: 128 })
-      })
-      .setTitle(`${emojis.warn} You Have Been Warned`)
-      .setDescription(`You have received a warning in **${guild.name}**.`)
-      .addFields(
-        { name: '📝 Reason', value: `\`\`\`${reason}\`\`\``, inline: false },
-        { name: '📊 Total', value: `\`${totalWarnings}\``, inline: true },
-        { name: '🆔 ID', value: `\`#${warningId}\``, inline: true }
-      )
-      .setFooter({ text: 'Powered by Dynamite Music' })
-      .setTimestamp();
-
-    try {
-      await targetUser.send({ embeds: [dmEmbed] });
-    } catch (err) {}
-
-    // Log (full details with moderator)
+    // ===== LOG (moderator visible) =====
     await sendLog(client, 'moderation', {
       emoji: emojis.warn,
       title: 'User Warned',
@@ -151,7 +166,7 @@ module.exports = {
       ],
     });
 
-    // Auto-action
+    // ===== AUTO-ACTION =====
     try {
       const configPath = path.join(__dirname, '..', '..', 'config', 'warnings.js');
       delete require.cache[require.resolve(configPath)];
