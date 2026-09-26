@@ -10,13 +10,16 @@ const client = new Client({
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
     GatewayIntentBits.GuildMembers,
+    GatewayIntentBits.GuildVoiceStates,
+    GatewayIntentBits.GuildModeration,
+    GatewayIntentBits.GuildPresences,
   ],
 });
 
-// Load all commands (prefix + slash)
+// Load commands
 const { slashArray } = hybridHandler(client);
 
-// Load events (ready, interactionCreate)
+// Load events
 const eventsPath = path.join(__dirname, 'events');
 if (fs.existsSync(eventsPath)) {
   const eventFiles = fs.readdirSync(eventsPath).filter(f => f.endsWith('.js'));
@@ -30,38 +33,54 @@ if (fs.existsSync(eventsPath)) {
   }
 }
 
-// Register slash commands when bot is ready
 client.once('ready', async () => {
+  console.log(`Bot online: ${client.user.tag}`);
+  client.user.setActivity('!help | /help');
+
+  // Register slash commands — ONLY add new ones, preserve existing
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   try {
-    console.log('Registering slash commands...');
-    await rest.put(
-      Routes.applicationCommands(client.user.id),
-      { body: slashArray }
-    );
-    console.log(`Registered ${slashArray.length} slash commands!`);
+    console.log('Syncing slash commands...');
+
+    // Get existing commands
+    const existing = await rest.get(Routes.applicationCommands(client.user.id));
+
+    // Get new command names
+    const newNames = slashArray.map(c => c.name);
+
+    // Build final array: keep existing that match, add new
+    const final = [];
+    const seenNames = new Set();
+
+    // First, keep all new commands (they have latest definitions)
+    for (const cmd of slashArray) {
+      final.push(cmd);
+      seenNames.add(cmd.name);
+    }
+
+    // Then, add existing commands that aren't in new list (preserve old ones)
+    for (const cmd of existing) {
+      if (!seenNames.has(cmd.name)) {
+        final.push(cmd);
+        seenNames.add(cmd.name);
+      }
+    }
+
+    // Register only if there are changes
+    const existingNames = existing.map(c => c.name).sort().join(',');
+    const finalNames = final.map(c => c.name).sort().join(',');
+
+    if (existingNames !== finalNames) {
+      await rest.put(
+        Routes.applicationCommands(client.user.id),
+        { body: final }
+      );
+      console.log(`✅ Registered ${final.length} slash commands (${final.length - existing.length} new)`);
+    } else {
+      console.log(`✅ Slash commands already up to date (${final.length} total)`);
+    }
   } catch (error) {
-    console.error(error);
-  }
-});
-
-// Prefix command handler (messageCreate)
-client.on('messageCreate', async (message) => {
-  if (message.author.bot) return;
-  if (!message.content.startsWith('!')) return;
-  if (!message.guild) return;
-
-  const args = message.content.slice(1).trim().split(/ +/);
-  const commandName = args.shift().toLowerCase();
-
-  const command = client.commands.get(commandName);
-  if (!command) return;
-
-  try {
-    await command.execute(message, args);
-  } catch (error) {
-    console.error(error);
-    message.reply('Something went wrong!').catch(() => {});
+    console.error('Failed to register slash commands:', error);
   }
 });
 
