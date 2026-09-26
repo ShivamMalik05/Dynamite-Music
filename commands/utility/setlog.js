@@ -20,11 +20,14 @@ module.exports = {
     }
 
     const config = loadConfig();
+    const pageIndex = 0;
+
     await context.reply({
       components: [
-        setlog.buildPanel(config),
-        ...setlog.buildTypeSelect(),
-        ...setlog.buildButtons(),
+        setlog.buildPage(config, pageIndex),
+        ...setlog.buildTypeDropdown(pageIndex),
+        ...setlog.buildCategoryDropdown(),
+        ...setlog.buildNavButtons(pageIndex),
       ],
       flags: 1 << 15 | 1 << 6,
     });
