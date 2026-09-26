@@ -34,7 +34,6 @@ module.exports = {
       client = context.client;
       channel = context.channel;
     } else {
-      // Delete user's command message (after 500ms)
       setTimeout(() => context.delete().catch(() => {}), 500);
 
       if (!context.member.permissions.has('ManageMessages')) {
@@ -57,12 +56,10 @@ module.exports = {
       return;
     }
 
-    // Delete messages
     try {
       let deleted;
 
       if (targetUser) {
-        // Filter by user
         const messages = await channel.messages.fetch({ limit: 100 });
         const filtered = messages.filter(m => m.author.id === targetUser.id).first(amount);
         deleted = await channel.bulkDelete(filtered, true);
@@ -70,7 +67,6 @@ module.exports = {
         deleted = await channel.bulkDelete(amount, true);
       }
 
-      // Public embed
       const publicEmbed = new EmbedBuilder()
         .setColor(0xED4245)
         .setAuthor({
@@ -89,15 +85,13 @@ module.exports = {
         })
         .setTimestamp();
 
-      let sentMsg;
       if (isSlash) {
-        sentMsg = await context.reply({ embeds: [publicEmbed], ephemeral: true });
+        await context.reply({ embeds: [publicEmbed], ephemeral: true });
       } else {
-        sentMsg = await context.reply({ embeds: [publicEmbed] });
+        const sentMsg = await context.reply({ embeds: [publicEmbed] });
         setTimeout(() => sentMsg.delete().catch(() => {}), 3000);
       }
 
-      // Log
       await sendLog(client, 'moderation', {
         emoji: emojis.purge,
         title: 'Messages Purged',
