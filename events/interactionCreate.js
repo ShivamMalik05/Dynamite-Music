@@ -27,6 +27,15 @@ module.exports = {
       if (interaction.isButton()) {
         const id = interaction.customId;
 
+        // Serverinfo buttons
+        if (id.startsWith('si_')) {
+          const serverinfo = client.slashCommands.get('serverinfo');
+          if (serverinfo && serverinfo.handleButton) {
+            const handled = await serverinfo.handleButton(interaction, client);
+            if (handled) return;
+          }
+        }
+
         // Stats buttons
         if (id.startsWith('stats_')) {
           const stats = client.slashCommands.get('stats');
