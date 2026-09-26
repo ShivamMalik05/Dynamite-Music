@@ -1,7 +1,7 @@
 const warningConfig = require('../config/warnings');
 
-// In-memory store (baad mein DB se replace karenge)
-const warnings = new Map(); // userId -> [{ reason, moderator, timestamp }]
+// In-memory store (will be replaced with DB later)
+const warnings = new Map(); // userId -> [{ reason, moderatorId, timestamp }]
 
 module.exports = {
   add(userId, reason, moderatorId) {
@@ -30,7 +30,6 @@ module.exports = {
     return this.get(userId).length;
   },
 
-  // Auto-action rule dhoondo
   getAction(warningCount) {
     const rules = warningConfig.rules
       .filter(r => r.enabled && warningCount >= r.warnings)
@@ -38,7 +37,6 @@ module.exports = {
     return rules[0] || null;
   },
 
-  // DM message banao
   formatDM(type, data = {}) {
     let msg = warningConfig.customDM[type] || '';
     for (const [key, value] of Object.entries(data)) {
