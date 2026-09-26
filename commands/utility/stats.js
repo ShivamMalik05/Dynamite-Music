@@ -6,6 +6,8 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MediaGalleryBuilder,
+  MediaGalleryItemBuilder,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 
@@ -18,6 +20,69 @@ function makeSep() {
   } catch {
     return { type: 14, divider: true, spacing: 1 };
   }
+}
+
+// ===== LINE CHART =====
+function generateChartUrl(labels, data) {
+  const chartConfig = {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Server Stats',
+        data: data,
+        borderColor: '#FFFFFF',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)',
+        borderWidth: 3,
+        pointBackgroundColor: '#FFFFFF',
+        pointBorderColor: '#FFFFFF',
+        pointBorderWidth: 2,
+        pointRadius: 6,
+        tension: 0.4,
+        fill: true,
+      }],
+    },
+    options: {
+      plugins: {
+        legend: { labels: { color: '#FFFFFF' } },
+        title: { display: true, text: 'Server Overview', color: '#FFFFFF', font: { size: 18, weight: 'bold' } },
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { color: '#FFFFFF' }, grid: { color: 'rgba(255,255,255,0.15)' } },
+        x: { ticks: { color: '#FFFFFF' }, grid: { color: 'rgba(255,255,255,0.15)' } },
+      },
+    },
+  };
+  return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=%231a1a2e&width=700&height=350&devicePixelRatio=2`;
+}
+
+// ===== BAR CHART =====
+function generateBarChartUrl(labels, data) {
+  const chartConfig = {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Count',
+        data: data,
+        backgroundColor: 'rgba(255, 255, 255, 0.6)',
+        borderColor: '#FFFFFF',
+        borderWidth: 2,
+        borderRadius: 8,
+      }],
+    },
+    options: {
+      plugins: {
+        legend: { display: false },
+        title: { display: true, text: 'Server Distribution', color: '#FFFFFF', font: { size: 18, weight: 'bold' } },
+      },
+      scales: {
+        y: { beginAtZero: true, ticks: { color: '#FFFFFF' }, grid: { color: 'rgba(255,255,255,0.15)' } },
+        x: { ticks: { color: '#FFFFFF' }, grid: { color: 'rgba(255,255,255,0.15)' } },
+      },
+    },
+  };
+  return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=%231a1a2e&width=700&height=350&devicePixelRatio=2`;
 }
 
 module.exports = {
@@ -43,6 +108,7 @@ module.exports = {
     const days = Math.floor(uptime / 86400000);
     const hours = Math.floor(uptime / 3600000) % 24;
     const minutes = Math.floor(uptime / 60000) % 60;
+    const seconds = Math.floor(uptime / 1000) % 60;
     const memory = (process.memoryUsage().heapUsed / 1024 / 1024).toFixed(1);
     const ping = client.ws.ping;
 
@@ -50,6 +116,18 @@ module.exports = {
     const serverChannels = guild.channels.cache.size;
     const serverRoles = guild.roles.cache.size;
     const serverBoosts = guild.premiumSubscriptionCount || 0;
+    const serverEmojis = guild.emojis.cache.size;
+    const serverOwner = await guild.fetchOwner().catch(() => null);
+
+    const lineChartUrl = generateChartUrl(
+      ['Members', 'Channels', 'Roles', 'Boosts'],
+      [serverMembers, serverChannels, serverRoles, serverBoosts]
+    );
+
+    const barChartUrl = generateBarChartUrl(
+      ['Members', 'Channels', 'Roles', 'Emojis', 'Boosts'],
+      [serverMembers, serverChannels, serverRoles, serverEmojis, serverBoosts]
+    );
 
     const container = new ContainerBuilder()
       .setAccentColor(0xFFFFFF)
@@ -66,7 +144,7 @@ module.exports = {
           `${emojis.dot} **Bot:** ${client.user.username}\n` +
           `${emojis.dot} **Ping:** ${ping}ms\n` +
           `${emojis.dot} **Memory:** ${memory} MB\n` +
-          `${emojis.dot} **Uptime:** ${days}d ${hours}h ${minutes}m`
+          `${emojis.dot} **Uptime:** ${days}d ${hours}h ${minutes}m ${seconds}s`
         )
       )
       .addSeparatorComponents(makeSep())
@@ -74,9 +152,11 @@ module.exports = {
         new TextDisplayBuilder().setContent(
           `**${emojis.home} Server Stats**\n` +
           `${emojis.dot} **Name:** ${guild.name}\n` +
+          `${emojis.dot} **Owner:** ${serverOwner ? serverOwner.user.tag : 'Unknown'}\n` +
           `${emojis.dot} **Members:** ${serverMembers}\n` +
           `${emojis.dot} **Channels:** ${serverChannels}\n` +
           `${emojis.dot} **Roles:** ${serverRoles}\n` +
+          `${emojis.dot} **Emojis:** ${serverEmojis}\n` +
           `${emojis.dot} **Boosts:** ${serverBoosts}`
         )
       )
@@ -86,6 +166,24 @@ module.exports = {
           `**${emojis.verified} Bot Stats**\n` +
           `${emojis.dot} **Servers:** ${totalServers}\n` +
           `${emojis.dot} **Users:** ${totalUsers}`
+        )
+      )
+      .addSeparatorComponents(makeSep())
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${emojis.chart || '📊'} Server Overview**`)
+      )
+      .addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(
+          new MediaGalleryItemBuilder().setURL(lineChartUrl)
+        )
+      )
+      .addSeparatorComponents(makeSep())
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${emojis.chart || '📊'} Server Distribution**`)
+      )
+      .addMediaGalleryComponents(
+        new MediaGalleryBuilder().addItems(
+          new MediaGalleryItemBuilder().setURL(barChartUrl)
         )
       )
       .addSeparatorComponents(makeSep())
@@ -107,7 +205,6 @@ module.exports = {
     });
   },
 
-  // ===== BUTTON HANDLER =====
   async handleButton(interaction, client) {
     const id = interaction.customId;
     if (!id.startsWith('stats_')) return false;
