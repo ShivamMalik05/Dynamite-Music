@@ -1,70 +1,57 @@
 module.exports = {
-  "channels": {
-    "moderation": "1550404080856211555",
-    "warn": "1550404080856211555",
-    "autoaction": "1550404080856211555",
-    "lock": "1550404080856211555",
-    "messages": "1550404080856211555",
-    "members": "",
-    "channels": "",
-    "roles": "1550404080856211555",
-    "voice": "1550404081040887843",
-    "server": ""
+  // ===== CHANNELS =====
+  channels: {
+    moderation: '',
+    warn: '',
+    autoaction: '',
+    lock: '',
+    messages: '',
+    members: '',
+    channels: '',
+    roles: '',
+    voice: '',
+    server: '',
+    nop: '',
+    music: '',
   },
-  "enabled": {
-    "moderation": true,
-    "warn": true,
-    "autoaction": true,
-    "lock": true,
-    "messages": true,
-    "members": true,
-    "channels": true,
-    "roles": true,
-    "voice": true,
-    "server": true
+
+  // ===== ENABLED =====
+  enabled: {
+    moderation: true,
+    warn: true,
+    autoaction: true,
+    lock: true,
+    messages: true,
+    members: true,
+    channels: true,
+    roles: true,
+    voice: true,
+    server: true,
+    nop: true,
+    music: true,
   },
-  "colors": {
-    "moderation": 15548997,
-    "warn": 16705372,
-    "autoaction": 15105570,
-    "lock": 15105570,
-    "messages": 16705372,
-    "members": 5763719,
-    "channels": 5793266,
-    "roles": 15418782,
-    "voice": 1752220,
-    "server": 10181046
+
+  // ===== COLORS =====
+  colors: {
+    moderation: 0xED4245,
+    warn: 0xFEE75C,
+    autoaction: 0xE67E22,
+    lock: 0xE67E22,
+    messages: 0xFEE75C,
+    members: 0x57F287,
+    channels: 0x5865F2,
+    roles: 0xEB459E,
+    voice: 0x1ABC9C,
+    server: 0x9B59B6,
+    nop: 0x9B59B6,
+    music: 0x9B59B6,
   },
-  "format": "detailed",
-  "filters": {
-    "messageContainsLink": false,
-    "messageContainsMention": false,
-    "messageContainsAttachment": false
-  },
-  "roleRouting": {
-    "enabled": false
-  },
-  "priority": {
-    "enabled": false
-  },
-  "autoArchive": {
-    "enabled": false,
-    "threshold": 1000
-  },
-  "reactions": {
-    "enabled": false,
-    "emojis": {
-      "ignore": "✅",
-      "review": "⚠️",
-      "important": "⭐"
-    }
-  },
-  "timeBased": {
-    "enabled": false,
-    "timezone": "Asia/Kolkata",
-    "activeHours": [0, 24]
-  },
-  "ignoredChannels": [],
-  "ignoredRoles": [],
-  "ignoredUsers": []
+
+  // ===== FORMAT =====
+  format: 'detailed', // compact, detailed, minimal
+
+  // ===== IGNORE =====
+  ignoredChannels: [],
+  ignoredRoles: [],
+  ignoredUsers: [],
 };
