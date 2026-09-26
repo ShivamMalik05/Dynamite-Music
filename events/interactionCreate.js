@@ -27,8 +27,8 @@ module.exports = {
       if (interaction.isButton()) {
         const id = interaction.customId;
 
-        // Warning Manager buttons (warn_*)
-        if (id.startsWith('warn_') && !id.startsWith('warnlogs_')) {
+        // Warning Manager buttons (wm_)
+        if (id.startsWith('wm_')) {
           const warning = client.slashCommands.get('warning');
           if (warning && warning.handleButton) {
             const handled = await warning.handleButton(interaction, client);
@@ -36,16 +36,7 @@ module.exports = {
           }
         }
 
-        // Warnlogs buttons
-        if (id.startsWith('warnlogs_')) {
-          const warnlogs = client.slashCommands.get('warnlogs');
-          if (warnlogs && warnlogs.handleButton) {
-            const handled = await warnlogs.handleButton(interaction, client);
-            if (handled) return;
-          }
-        }
-
-        // Autoaction buttons
+        // Autoaction buttons (aa_)
         if (id.startsWith('aa_')) {
           const autoaction = client.slashCommands.get('autoaction');
           if (autoaction && autoaction.handleButton) {
@@ -54,7 +45,7 @@ module.exports = {
           }
         }
 
-        // Serverinfo buttons
+        // Serverinfo buttons (si_)
         if (id.startsWith('si_')) {
           const serverinfo = client.slashCommands.get('serverinfo');
           if (serverinfo && serverinfo.handleButton) {
@@ -63,7 +54,7 @@ module.exports = {
           }
         }
 
-        // Stats buttons
+        // Stats buttons (stats_)
         if (id.startsWith('stats_')) {
           const stats = client.slashCommands.get('stats');
           if (stats && stats.handleButton) {
@@ -72,7 +63,7 @@ module.exports = {
           }
         }
 
-        // Help buttons
+        // Help buttons (help_)
         if (id.startsWith('help_')) {
           const help = client.slashCommands.get('help');
           if (help && help.handleButton) {
@@ -81,7 +72,7 @@ module.exports = {
           }
         }
 
-        // Setperm buttons
+        // Setperm buttons (sp_)
         if (id.startsWith('sp_')) {
           const setperm = client.slashCommands.get('setperm');
           if (setperm && setperm.handleButton) {
@@ -151,15 +142,15 @@ module.exports = {
       if (interaction.isModalSubmit()) {
         const id = interaction.customId;
 
-        // Warning Manager modals
-        if (id.startsWith('warn_modal_')) {
+        // Warning Manager modals (wm_modal_)
+        if (id.startsWith('wm_modal_')) {
           const warning = client.slashCommands.get('warning');
           if (warning && warning.handleModal) {
             return await warning.handleModal(interaction, client);
           }
         }
 
-        // Autoaction modals
+        // Autoaction modals (aa_modal_)
         if (id.startsWith('aa_modal_')) {
           const autoaction = client.slashCommands.get('autoaction');
           if (autoaction && autoaction.handleModal) {
