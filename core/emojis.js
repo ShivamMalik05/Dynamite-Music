@@ -2,7 +2,7 @@ const emojiConfig = require('../config/emojis');
 
 module.exports = {
   get(key, client = null) {
-    // App emoji try karo
+    // Try application emoji first
     if (client && client.application && client.application.emojis) {
       const appName = emojiConfig.app[key];
       if (appName) {
@@ -10,11 +10,11 @@ module.exports = {
         if (emoji) return emoji.toString();
       }
     }
-    // Fallback
+    // Fallback to unicode
     return emojiConfig.fallback[key] || '';
   },
 
-  // Multiple ek saath
+  // Get all emojis at once
   getAll(client = null) {
     const result = {};
     for (const key of Object.keys(emojiConfig.app)) {
