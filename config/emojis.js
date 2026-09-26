@@ -1,7 +1,6 @@
 // ============================================
 // EMOJI CONFIG
-// Uses Discord App Emojis (from Developer Portal)
-// Change any emoji here — updates everywhere
+// Uses Discord App Emojis (Developer Portal)
 // ============================================
 
 module.exports = {
@@ -23,6 +22,17 @@ module.exports = {
     party: '<:party:1553320430448812093>',
     smile: '<:smile:1553320445825257523>',
     dot: '<:dot:1553315102994862181>',
+    // Common aliases
+    user: '<:person:1553314404131541022>',
+    channel: '<:home:1553314870806708334>',
+    time: '<:time:1553314147398189076>',
+    duration: '<:time:1553314147398189076>',
+    reason: '<:info:1553314452001136660>',
+    moderator: '<:mod:1553314932630749225>',
+    staff: '<:mod:1553314932630749225>',
+    admin: '<:admin:1553314992751771730>',
+    server: '<:home:1553314870806708334>',
+    bot: '<:info:1553314452001136660>',
   },
 
   // ===== MODERATION =====
