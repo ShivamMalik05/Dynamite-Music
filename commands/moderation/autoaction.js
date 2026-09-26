@@ -47,7 +47,6 @@ function makeSep() {
   }
 }
 
-// ===== BUILD SETTINGS PANEL =====
 function buildSettingsPanel(config, client) {
   const aa = config.autoAction || {};
   const status = aa.enabled ? '✅ Enabled' : '❌ Disabled';
@@ -81,9 +80,9 @@ function buildSettingsPanel(config, client) {
       new TextDisplayBuilder().setContent(
         `## How It Works\n` +
         `When a user reaches a threshold, the action is applied automatically.\n` +
-        `• ${emojis.mute} Mute = Timeout\n` +
-        `• ${emojis.kick} Kick = Remove from server\n` +
-        `• ${emojis.ban} Ban = Permanent removal`
+        `${emojis.dot} ${emojis.mute} Mute = Timeout\n` +
+        `${emojis.dot} ${emojis.kick} Kick = Remove from server\n` +
+        `${emojis.dot} ${emojis.ban} Ban = Permanent removal`
       )
     )
     .addSeparatorComponents(makeSep())
@@ -177,7 +176,6 @@ module.exports = {
       return true;
     }
 
-    // Set thresholds via modal
     if (id === 'aa_set_mute' || id === 'aa_set_kick' || id === 'aa_set_ban') {
       const type = id.replace('aa_set_', '');
       const modal = new ModalBuilder()
