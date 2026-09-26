@@ -1,29 +1,28 @@
 module.exports = {
   // ===== RULES =====
   rules: [
-    { id: 1, warnings: 1, action: 'mute', duration: 5, enabled: true, priority: 1 },
-    { id: 2, warnings: 3, action: 'mute', duration: 30, enabled: true, priority: 2 },
-    { id: 3, warnings: 5, action: 'mute', duration: 60, enabled: true, priority: 3 },
-    { id: 4, warnings: 7, action: 'kick', enabled: true, priority: 4 },
-    { id: 5, warnings: 10, action: 'ban', enabled: true, priority: 5 },
+    { id: 1, warnings: 3, action: 'mute', duration: 10, enabled: true, priority: 1 },
+    { id: 2, warnings: 5, action: 'mute', duration: 60, enabled: true, priority: 2 },
+    { id: 3, warnings: 7, action: 'kick', enabled: true, priority: 3 },
+    { id: 4, warnings: 10, action: 'ban', enabled: true, priority: 4 },
   ],
 
   // ===== AUTO-DELETE =====
   autoDelete: {
-    enabled: true,
-    days: 60,
+    enabled: false,
+    days: 30,
   },
 
   // ===== DECAY =====
   decay: {
-    enabled: true,
+    enabled: false,
     days: 7,
     factor: 0.5,
   },
 
   // ===== NOTIFY =====
   notify: {
-    enabled: true,
+    enabled: false,
   },
 
   // ===== SILENT MODE =====
