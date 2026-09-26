@@ -7,6 +7,9 @@ const {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 const { sendLog } = require('../../utils/logger');
@@ -44,6 +47,7 @@ function makeSep() {
   }
 }
 
+// ===== BUILD SETTINGS PANEL =====
 function buildSettingsPanel(config, client) {
   const aa = config.autoAction || {};
   const status = aa.enabled ? '✅ Enabled' : '❌ Disabled';
@@ -52,7 +56,8 @@ function buildSettingsPanel(config, client) {
     .setAccentColor(aa.enabled ? 0x57F287 : 0xED4245)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# ${emojis.shield} Auto-Action Settings\n**Automatic moderation based on warnings**`
+        `# ${emojis.shield} Auto-Action Settings\n` +
+        `**Automatic moderation based on warnings**`
       )
     )
     .addSeparatorComponents(makeSep())
@@ -76,9 +81,9 @@ function buildSettingsPanel(config, client) {
       new TextDisplayBuilder().setContent(
         `## How It Works\n` +
         `When a user reaches a threshold, the action is applied automatically.\n` +
-        `• Mute = Timeout\n` +
-        `• Kick = Remove from server\n` +
-        `• Ban = Permanent removal`
+        `• ${emojis.mute} Mute = Timeout\n` +
+        `• ${emojis.kick} Kick = Remove from server\n` +
+        `• ${emojis.ban} Ban = Permanent removal`
       )
     )
     .addSeparatorComponents(makeSep())
@@ -174,7 +179,6 @@ module.exports = {
 
     // Set thresholds via modal
     if (id === 'aa_set_mute' || id === 'aa_set_kick' || id === 'aa_set_ban') {
-      const { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } = require('discord.js');
       const type = id.replace('aa_set_', '');
       const modal = new ModalBuilder()
         .setCustomId(`aa_modal_${type}`)
