@@ -11,7 +11,6 @@ const {
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 
-// ===== HELPERS =====
 function makeSep() {
   try {
     const sep = new SeparatorBuilder();
@@ -23,7 +22,6 @@ function makeSep() {
   }
 }
 
-// ===== DOUGHNUT CHART (White BG, Black Text) =====
 function generateDoughnutChart(labels, data, title = '') {
   const chartConfig = {
     type: 'doughnut',
@@ -32,14 +30,8 @@ function generateDoughnutChart(labels, data, title = '') {
       datasets: [{
         data: data,
         backgroundColor: [
-          '#000000',
-          '#333333',
-          '#666666',
-          '#999999',
-          '#CCCCCC',
-          '#1a1a1a',
-          '#4d4d4d',
-          '#808080',
+          '#000000', '#333333', '#666666', '#999999',
+          '#CCCCCC', '#1a1a1a', '#4d4d4d', '#808080',
         ],
         borderColor: '#FFFFFF',
         borderWidth: 2,
@@ -51,12 +43,7 @@ function generateDoughnutChart(labels, data, title = '') {
         legend: {
           display: true,
           position: 'right',
-          labels: {
-            color: '#000000',
-            font: { size: 13, weight: 'bold' },
-            padding: 12,
-            boxWidth: 15,
-          },
+          labels: { color: '#000000', font: { size: 13, weight: 'bold' }, padding: 12, boxWidth: 15 },
         },
         title: {
           display: !!title,
@@ -69,8 +56,6 @@ function generateDoughnutChart(labels, data, title = '') {
           backgroundColor: '#000000',
           titleColor: '#FFFFFF',
           bodyColor: '#FFFFFF',
-          borderColor: '#000000',
-          borderWidth: 1,
         },
       },
     },
@@ -78,7 +63,6 @@ function generateDoughnutChart(labels, data, title = '') {
   return `https://quickchart.io/chart?c=${encodeURIComponent(JSON.stringify(chartConfig))}&backgroundColor=%23FFFFFF&width=600&height=400&devicePixelRatio=2`;
 }
 
-// ===== GET SERVER DATA =====
 async function getServerData(guild) {
   const owner = await guild.fetchOwner().catch(() => null);
   const totalChannels = guild.channels.cache.size;
@@ -88,11 +72,9 @@ async function getServerData(guild) {
   const announcementChannels = guild.channels.cache.filter(c => c.type === 5).size;
   const stageChannels = guild.channels.cache.filter(c => c.type === 13).size;
   const forumChannels = guild.channels.cache.filter(c => c.type === 15).size;
-
   const totalRoles = guild.roles.cache.size;
   const managedRoles = guild.roles.cache.filter(r => r.managed).size;
   const highestRole = guild.roles.highest;
-
   const totalMembers = guild.memberCount;
   const bots = guild.members.cache.filter(m => m.user.bot).size;
   const humans = totalMembers - bots;
@@ -100,18 +82,15 @@ async function getServerData(guild) {
   const idle = guild.members.cache.filter(m => m.presence?.status === 'idle').size;
   const dnd = guild.members.cache.filter(m => m.presence?.status === 'dnd').size;
   const offline = totalMembers - (online + idle + dnd);
-
   const totalEmojis = guild.emojis.cache.size;
   const animatedEmojis = guild.emojis.cache.filter(e => e.animated).size;
   const staticEmojis = totalEmojis - animatedEmojis;
   const totalStickers = guild.stickers?.cache.size || 0;
-
   const boostCount = guild.premiumSubscriptionCount || 0;
   const boostLevel = guild.premiumTier || 0;
 
   return {
-    owner,
-    totalChannels, textChannels, voiceChannels, categoryChannels,
+    owner, totalChannels, textChannels, voiceChannels, categoryChannels,
     announcementChannels, stageChannels, forumChannels,
     totalRoles, managedRoles, highestRole,
     totalMembers, bots, humans, online, idle, dnd, offline,
@@ -120,14 +99,12 @@ async function getServerData(guild) {
   };
 }
 
-// ===== BUILD FRONT PAGE =====
 function buildFrontPage(guild, client) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# ${emojis.home} ${guild.name}\n` +
-        `**Server Information Panel**`
+        `# ${emojis.home} ${guild.name}\n**Server Information Panel**`
       )
     )
     .addSeparatorComponents(makeSep())
@@ -138,19 +115,7 @@ function buildFrontPage(guild, client) {
         `**${emojis.info} How to use:**\n` +
         `${emojis.arrow} Click a button below\n` +
         `${emojis.arrow} Each page shows different stats\n` +
-        `${emojis.arrow} Charts show distribution\n` +
-        `${emojis.arrow} Close button to dismiss`
-      )
-    )
-    .addSeparatorComponents(makeSep())
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `**${emojis.stats} Available Pages**\n` +
-        `${emojis.arrow} ${emojis.chart || '📊'} **Overview** — General info\n` +
-        `${emojis.arrow} ${emojis.person} **Members** — Member stats\n` +
-        `${emojis.arrow} ${emojis.home} **Channels** — Channel stats\n` +
-        `${emojis.arrow} ${emojis.mod} **Roles** — Role stats & powers\n` +
-        `${emojis.arrow} ${emojis.verified} **Boosts** — Boost info`
+        `${emojis.arrow} Charts show distribution`
       )
     )
     .addSeparatorComponents(makeSep())
@@ -173,7 +138,6 @@ function buildFrontPage(guild, client) {
   return [container, row, row2];
 }
 
-// ===== BUILD OVERVIEW PAGE =====
 async function buildOverviewPage(guild, client) {
   const d = await getServerData(guild);
 
@@ -186,10 +150,7 @@ async function buildOverviewPage(guild, client) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${emojis.chart || '📊'} Overview\n` +
-        `**${guild.name}**`
-      )
+      new TextDisplayBuilder().setContent(`# ${emojis.chart || '📊'} Overview\n**${guild.name}**`)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -197,8 +158,7 @@ async function buildOverviewPage(guild, client) {
         `**${emojis.info} General**\n` +
         `${emojis.arrow} **Owner:** ${d.owner ? d.owner.user.tag : 'Unknown'}\n` +
         `${emojis.arrow} **ID:** \`${guild.id}\`\n` +
-        `${emojis.arrow} **Created:** <t:${Math.floor(guild.createdTimestamp / 1000)}:R>\n` +
-        `${emojis.arrow} **Verification:** ${guild.verificationLevel}`
+        `${emojis.arrow} **Created:** <t:${Math.floor(guild.createdTimestamp / 1000)}:R>`
       )
     )
     .addSeparatorComponents(makeSep())
@@ -216,9 +176,7 @@ async function buildOverviewPage(guild, client) {
       new TextDisplayBuilder().setContent(`**${emojis.chart || '📊'} Channel Chart**`)
     )
     .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL(chartUrl)
-      )
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(chartUrl))
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -236,10 +194,8 @@ async function buildOverviewPage(guild, client) {
   return [container, row];
 }
 
-// ===== BUILD MEMBERS PAGE =====
 async function buildMembersPage(guild, client) {
   const d = await getServerData(guild);
-
   const chartUrl = generateDoughnutChart(
     ['Online', 'Idle', 'DND', 'Offline'],
     [d.online, d.idle, d.dnd, d.offline],
@@ -249,10 +205,7 @@ async function buildMembersPage(guild, client) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${emojis.person} Members\n` +
-        `**${guild.name}**`
-      )
+      new TextDisplayBuilder().setContent(`# ${emojis.person} Members\n**${guild.name}**`)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -278,9 +231,7 @@ async function buildMembersPage(guild, client) {
       new TextDisplayBuilder().setContent(`**${emojis.chart || '📊'} Member Chart**`)
     )
     .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL(chartUrl)
-      )
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(chartUrl))
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -298,10 +249,8 @@ async function buildMembersPage(guild, client) {
   return [container, row];
 }
 
-// ===== BUILD CHANNELS PAGE =====
 async function buildChannelsPage(guild, client) {
   const d = await getServerData(guild);
-
   const chartUrl = generateDoughnutChart(
     ['Text', 'Voice', 'Category', 'Announcement', 'Stage', 'Forum'],
     [d.textChannels, d.voiceChannels, d.categoryChannels, d.announcementChannels, d.stageChannels, d.forumChannels],
@@ -311,16 +260,11 @@ async function buildChannelsPage(guild, client) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${emojis.home} Channels\n` +
-        `**${guild.name}**`
-      )
+      new TextDisplayBuilder().setContent(`# ${emojis.home} Channels\n**${guild.name}**`)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `**${emojis.stats} Total Channels:** \`${d.totalChannels}\``
-      )
+      new TextDisplayBuilder().setContent(`**${emojis.stats} Total Channels:** \`${d.totalChannels}\``)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -339,9 +283,7 @@ async function buildChannelsPage(guild, client) {
       new TextDisplayBuilder().setContent(`**${emojis.chart || '📊'} Channel Chart**`)
     )
     .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL(chartUrl)
-      )
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(chartUrl))
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -359,11 +301,9 @@ async function buildChannelsPage(guild, client) {
   return [container, row];
 }
 
-// ===== BUILD ROLES PAGE =====
 async function buildRolesPage(guild, client) {
   const d = await getServerData(guild);
 
-  // Top 5 roles by member count
   const topRoles = guild.roles.cache
     .filter(r => r.id !== guild.id)
     .sort((a, b) => b.members.size - a.members.size)
@@ -377,10 +317,7 @@ async function buildRolesPage(guild, client) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${emojis.mod} Roles\n` +
-        `**${guild.name}**`
-      )
+      new TextDisplayBuilder().setContent(`# ${emojis.mod} Roles\n**${guild.name}**`)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -402,9 +339,7 @@ async function buildRolesPage(guild, client) {
       new TextDisplayBuilder().setContent(`**${emojis.chart || '📊'} Role Chart**`)
     )
     .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL(chartUrl)
-      )
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(chartUrl))
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -422,10 +357,8 @@ async function buildRolesPage(guild, client) {
   return [container, row];
 }
 
-// ===== BUILD BOOSTS PAGE =====
 async function buildBoostsPage(guild, client) {
   const d = await getServerData(guild);
-
   const maxBoost = [0, 2, 7, 14][d.boostLevel] || 14;
   const remaining = maxBoost - d.boostCount;
 
@@ -438,10 +371,7 @@ async function buildBoostsPage(guild, client) {
   const container = new ContainerBuilder()
     .setAccentColor(0xFFFFFF)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${emojis.verified} Boosts\n` +
-        `**${guild.name}**`
-      )
+      new TextDisplayBuilder().setContent(`# ${emojis.verified} Boosts\n**${guild.name}**`)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -467,9 +397,7 @@ async function buildBoostsPage(guild, client) {
       new TextDisplayBuilder().setContent(`**${emojis.chart || '📊'} Boost Chart**`)
     )
     .addMediaGalleryComponents(
-      new MediaGalleryBuilder().addItems(
-        new MediaGalleryItemBuilder().setURL(chartUrl)
-      )
+      new MediaGalleryBuilder().addItems(new MediaGalleryItemBuilder().setURL(chartUrl))
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -508,7 +436,6 @@ module.exports = {
     await context.reply({ components, flags: 1 << 15 });
   },
 
-  // ===== BUTTON HANDLER =====
   async handleButton(interaction, client) {
     const id = interaction.customId;
     if (!id.startsWith('si_')) return false;
@@ -529,3 +456,13 @@ module.exports = {
     let components;
     if (id === 'si_home') components = buildFrontPage(guild, client);
     else if (id === 'si_overview') components = await buildOverviewPage(guild, client);
+    else if (id === 'si_members') components = await buildMembersPage(guild, client);
+    else if (id === 'si_channels') components = await buildChannelsPage(guild, client);
+    else if (id === 'si_roles') components = await buildRolesPage(guild, client);
+    else if (id === 'si_boosts') components = await buildBoostsPage(guild, client);
+    else return false;
+
+    await interaction.update({ components, flags: 1 << 15 });
+    return true;
+  },
+};
