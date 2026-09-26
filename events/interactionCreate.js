@@ -27,6 +27,24 @@ module.exports = {
       if (interaction.isButton()) {
         const id = interaction.customId;
 
+        // Warning Manager buttons (warn_*)
+        if (id.startsWith('warn_') && !id.startsWith('warnlogs_')) {
+          const warning = client.slashCommands.get('warning');
+          if (warning && warning.handleButton) {
+            const handled = await warning.handleButton(interaction, client);
+            if (handled) return;
+          }
+        }
+
+        // Warnlogs buttons
+        if (id.startsWith('warnlogs_')) {
+          const warnlogs = client.slashCommands.get('warnlogs');
+          if (warnlogs && warnlogs.handleButton) {
+            const handled = await warnlogs.handleButton(interaction, client);
+            if (handled) return;
+          }
+        }
+
         // Autoaction buttons
         if (id.startsWith('aa_')) {
           const autoaction = client.slashCommands.get('autoaction');
@@ -59,24 +77,6 @@ module.exports = {
           const help = client.slashCommands.get('help');
           if (help && help.handleButton) {
             const handled = await help.handleButton(interaction, client);
-            if (handled) return;
-          }
-        }
-
-        // Warning history pagination
-        if (id.startsWith('warnhistory_')) {
-          const warning = client.slashCommands.get('warning');
-          if (warning && warning.handleButton) {
-            const handled = await warning.handleButton(interaction, client);
-            if (handled) return;
-          }
-        }
-
-        // Warnlogs buttons
-        if (id.startsWith('warnlogs_')) {
-          const warnlogs = client.slashCommands.get('warnlogs');
-          if (warnlogs && warnlogs.handleButton) {
-            const handled = await warnlogs.handleButton(interaction, client);
             if (handled) return;
           }
         }
@@ -150,6 +150,14 @@ module.exports = {
       // ===== MODALS =====
       if (interaction.isModalSubmit()) {
         const id = interaction.customId;
+
+        // Warning Manager modals
+        if (id.startsWith('warn_modal_')) {
+          const warning = client.slashCommands.get('warning');
+          if (warning && warning.handleModal) {
+            return await warning.handleModal(interaction, client);
+          }
+        }
 
         // Autoaction modals
         if (id.startsWith('aa_modal_')) {
