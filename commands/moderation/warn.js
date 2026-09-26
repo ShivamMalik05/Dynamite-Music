@@ -57,7 +57,8 @@ module.exports = {
       client = context.client;
       guild = context.guild;
     } else {
-      setTimeout(() => context.delete().catch(() => {}), , 5000);
+      // Delete user's command message after 5 seconds (align with reply)
+      setTimeout(() => context.delete().catch(() => {}), 5000);
 
       if (!context.member.permissions.has('ModerateMembers')) {
         const msg = await context.reply(`${emojis.error} You do not have permission!`);
@@ -84,6 +85,7 @@ module.exports = {
       guild = context.guild;
     }
 
+    // Save warning
     const data = loadWarnings();
     const warningId = data.nextId;
     data.nextId += 1;
@@ -101,7 +103,7 @@ module.exports = {
 
     const totalWarnings = data.warnings[targetId].length;
 
-    // DM to target
+    // ===== DM TO TARGET =====
     try {
       const dmEmbed = new EmbedBuilder()
         .setColor(0xFEE75C)
@@ -122,7 +124,7 @@ module.exports = {
       await targetUser.send({ embeds: [dmEmbed] });
     } catch (err) {}
 
-    // Public embed
+    // ===== PUBLIC EMBED =====
     const publicEmbed = new EmbedBuilder()
       .setColor(0xFEE75C)
       .setAuthor({
@@ -142,15 +144,16 @@ module.exports = {
       })
       .setTimestamp();
 
+    // ===== SEND REPLY (both delete after 5 seconds) =====
     if (isSlash) {
       await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
-      setTimeout(() => context.deleteReply().catch(() => {}), 3000);
+      setTimeout(() => context.deleteReply().catch(() => {}), 5000);
     } else {
       const sentMsg = await context.reply({ content: `${targetUser}`, embeds: [publicEmbed] });
-      setTimeout(() => sentMsg.delete().catch(() => {}), 3000);
+      setTimeout(() => sentMsg.delete().catch(() => {}), 5000);
     }
 
-    // Log
+    // ===== LOG =====
     await sendLog(client, 'moderation', {
       emoji: emojis.warn,
       title: 'User Warned',
