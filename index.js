@@ -3,6 +3,7 @@ const { Client, GatewayIntentBits, REST, Routes } = require('discord.js');
 const path = require('path');
 const fs = require('fs');
 const hybridHandler = require('./handlers/hybridHandler');
+const { fetchAppEmojis } = require('./utils/appEmojis');
 
 const client = new Client({
   intents: [
@@ -37,28 +38,27 @@ client.once('ready', async () => {
   console.log(`Bot online: ${client.user.tag}`);
   client.user.setActivity('!help | /help');
 
-  // Register slash commands — ONLY add new ones, preserve existing
+  // ===== FETCH APP EMOJIS =====
+  client.appEmojis = await fetchAppEmojis(client);
+  console.log(`App emojis loaded: ${Object.keys(client.appEmojis).length}`);
+
+  // ===== REGISTER SLASH COMMANDS =====
   const rest = new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN);
   try {
     console.log('Syncing slash commands...');
 
-    // Get existing commands
     const existing = await rest.get(Routes.applicationCommands(client.user.id));
 
-    // Get new command names
-    const newNames = slashArray.map(c => c.name);
-
-    // Build final array: keep existing that match, add new
     const final = [];
     const seenNames = new Set();
 
-    // First, keep all new commands (they have latest definitions)
+    // Add new commands
     for (const cmd of slashArray) {
       final.push(cmd);
       seenNames.add(cmd.name);
     }
 
-    // Then, add existing commands that aren't in new list (preserve old ones)
+    // Preserve existing commands not in new list
     for (const cmd of existing) {
       if (!seenNames.has(cmd.name)) {
         final.push(cmd);
@@ -66,7 +66,6 @@ client.once('ready', async () => {
       }
     }
 
-    // Register only if there are changes
     const existingNames = existing.map(c => c.name).sort().join(',');
     const finalNames = final.map(c => c.name).sort().join(',');
 
