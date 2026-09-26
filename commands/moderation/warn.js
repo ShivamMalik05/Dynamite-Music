@@ -132,30 +132,43 @@ module.exports = {
       ],
     });
 
-    // ===== AUTO-ACTION (using core) =====
-    try {
-      const rule = core.autoAction.getTriggeredRule(totalWarnings);
-      if (!rule) return;
+// ===== AUTO-ACTION =====
+try {
+  console.log(`[warn] Checking auto-action for ${totalWarnings} warnings...`);
 
-      const member = await guild.members.fetch(targetId).catch(() => null);
-      if (!member) return;
+  const rule = core.autoAction.getTriggeredRule(totalWarnings);
+  if (!rule) {
+    console.log('[warn] No rule triggered');
+    return;
+  }
 
-      const actionResult = await core.autoAction.applyAction(member, rule, totalWarnings);
-      if (!actionResult.success) return;
+  const member = await guild.members.fetch(targetId).catch(() => null);
+  if (!member) {
+    console.log('[warn] Member not found');
+    return;
+  }
 
-      await sendLog(client, 'autoaction', {
-        emoji: actionResult.action === 'ban' ? emojis.ban : actionResult.action === 'kick' ? emojis.kick : emojis.mute,
-        title: `Auto-${actionResult.action.charAt(0).toUpperCase() + actionResult.action.slice(1)} Triggered`,
-        subtitle: `User reached ${totalWarnings} warnings`,
-        fields: [
-          { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
-          { name: '📊 Warnings', value: `${totalWarnings}` },
-          { name: '🎯 Action', value: actionResult.action },
-          ...(actionResult.duration ? [{ name: '⏱️ Duration', value: `${actionResult.duration} minutes` }] : []),
-        ],
-      });
-    } catch (err) {
-      console.error('[warn] Auto-action error:', err.message);
-    }
-  },
-};
+  const actionResult = await core.autoAction.applyAction(member, rule, totalWarnings);
+
+  if (!actionResult.success) {
+    console.log('[warn] Auto-action failed:', actionResult.error);
+    return;
+  }
+
+  // Log auto-action
+  await sendLog(client, 'autoaction', {
+    emoji: actionResult.action === 'ban' ? emojis.ban : actionResult.action === 'kick' ? emojis.kick : emojis.mute,
+    title: `Auto-${actionResult.action.charAt(0).toUpperCase() + actionResult.action.slice(1)} Triggered`,
+    subtitle: `User reached ${totalWarnings} warnings`,
+    fields: [
+      { name: '👤 User', value: `${targetUser.tag} (${targetId})` },
+      { name: '📊 Warnings', value: `${totalWarnings}` },
+      { name: '🎯 Action', value: actionResult.action },
+      ...(actionResult.duration ? [{ name: '⏱️ Duration', value: `${actionResult.duration} minutes` }] : []),
+    ],
+  });
+  console.log('[warn] ✅ Auto-action logged');
+} catch (err) {
+  console.error('[warn] Auto-action error:', err.message);
+  console.error(err.stack);
+}
