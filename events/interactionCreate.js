@@ -6,7 +6,6 @@ module.exports = {
   once: false,
   async execute(interaction, client) {
     try {
-      // ===== SLASH COMMANDS =====
       if (interaction.isChatInputCommand()) {
         const command = client.slashCommands.get(interaction.commandName);
         if (!command) return;
@@ -23,65 +22,26 @@ module.exports = {
         return;
       }
 
-      // ===== BUTTONS =====
       if (interaction.isButton()) {
-        if (embedbuilder.isRoleButton(interaction.customId)) {
-          return await embedbuilder.handleRoleButton(interaction);
+        // Warning history pagination
+        if (interaction.customId.startsWith('warnhistory_')) {
+          const warning = client.slashCommands.get('warning');
+          if (warning && warning.handleButton) return await warning.handleButton(interaction, client);
         }
-        if (setlog.isSetlogButton(interaction.customId)) {
-          return await setlog.handleButton(interaction, client);
+
+        // Autoaction
+        if (interaction.customId.startsWith('aa_')) {
+          const autoaction = client.slashCommands.get('autoaction');
+          if (autoaction && autoaction.handleButton) return await autoaction.handleButton(interaction, client);
         }
-        if (embedbuilder.isEmbedButton(interaction.customId)) {
-          return await embedbuilder.handleButton(interaction, client);
+
+        // Warnlogs
+        if (interaction.customId.startsWith('warnlogs_')) {
+          const warnlogs = client.slashCommands.get('warnlogs');
+          if (warnlogs && warnlogs.handleButton) return await warnlogs.handleButton(interaction, client);
         }
+
+        // setperm
         if (interaction.customId.startsWith('sp_')) {
           const setperm = client.slashCommands.get('setperm');
-          if (setperm && setperm.handleButton) {
-            return await setperm.handleButton(interaction, client);
-          }
-        }
-      }
-
-      // ===== STRING SELECT MENUS =====
-      if (interaction.isStringSelectMenu()) {
-        if (setlog.isSetlogSelect(interaction.customId)) {
-          return await setlog.handleSelect(interaction);
-        }
-        if (embedbuilder.isEmbedSelect(interaction.customId)) {
-          return await embedbuilder.handleSelect(interaction, client);
-        }
-      }
-
-      // ===== USER / ROLE SELECT MENUS =====
-      if (interaction.isUserSelectMenu() || interaction.isRoleSelectMenu()) {
-        if (interaction.customId.startsWith('sp_select_')) {
-          const setperm = client.slashCommands.get('setperm');
-          if (setperm && setperm.handleSelect) {
-            return await setperm.handleSelect(interaction, client);
-          }
-        }
-      }
-
-      // ===== CHANNEL SELECT MENUS =====
-      if (interaction.isChannelSelectMenu()) {
-        if (setlog.isSetlogChannel(interaction.customId)) {
-          return await setlog.handleChannelSelect(interaction);
-        }
-      }
-
-      // ===== MODALS =====
-      if (interaction.isModalSubmit()) {
-        if (embedbuilder.isEmbedModal(interaction.customId)) {
-          return await embedbuilder.handleModal(interaction, client);
-        }
-      }
-    } catch (error) {
-      console.error('Interaction error:', error);
-      try {
-        if (!interaction.replied && !interaction.deferred) {
-          await interaction.reply({ content: `Error: ${error.message}`, ephemeral: true });
-        }
-      } catch (e) {}
-    }
-  },
-};
+          if (setperm && setperm
