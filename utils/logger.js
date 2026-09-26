@@ -4,19 +4,30 @@ const {
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
 } = require('discord.js');
 
 const configPath = path.join(__dirname, '..', 'config', 'logs.js');
 
-// ===== LOG QUEUE (prevent spam crash) =====
+// ===== LOG QUEUE =====
 const logQueue = [];
 let processing = false;
 
-// ===== CONFIG MANAGEMENT =====
+// ===== CONFIG =====
 function loadConfig() {
   try {
     delete require.cache[require.resolve(configPath)];
-    return require(configPath);
+    const config = require(configPath);
+    // Ensure defaults
+    if (!config.channels) config.channels = {};
+    if (!config.enabled) config.enabled = {};
+    if (!config.colors) config.colors = {};
+    if (!config.ignoredChannels) config.ignoredChannels = [];
+    if (!config.ignoredRoles) config.ignoredRoles = [];
+    if (!config.ignoredUsers) config.ignoredUsers = [];
+    return config;
   } catch (err) {
     console.error('[logger] Failed to load config:', err.message);
     return null;
@@ -30,6 +41,13 @@ function saveConfig(config) {
       channels: { ...(existing.channels || {}), ...(config.channels || {}) },
       enabled: { ...(existing.enabled || {}), ...(config.enabled || {}) },
       colors: { ...(existing.colors || {}), ...(config.colors || {}) },
+      format: config.format ?? existing.format ?? 'detailed',
+      filters: { ...(existing.filters || {}), ...(config.filters || {}) },
+      roleRouting: { ...(existing.roleRouting || {}), ...(config.roleRouting || {}) },
+      priority: { ...(existing.priority || {}), ...(config.priority || {}) },
+      autoArchive: { ...(existing.autoArchive || {}), ...(config.autoArchive || {}) },
+      reactions: { ...(existing.reactions || {}), ...(config.reactions || {}) },
+      timeBased: { ...(existing.timeBased || {}), ...(config.timeBased || {}) },
       ignoredChannels: config.ignoredChannels || existing.ignoredChannels || [],
       ignoredRoles: config.ignoredRoles || existing.ignoredRoles || [],
       ignoredUsers: config.ignoredUsers || existing.ignoredUsers || [],
@@ -55,57 +73,94 @@ function makeSep() {
   }
 }
 
-// ===== GET CHANNEL (cache + fetch + retry) =====
+// ===== CHANNEL FETCH =====
 async function getChannel(client, channelId) {
-  // Try cache
   let channel = client.channels.cache.get(channelId);
   if (channel) return channel;
-
-  // Try fetch with retry
   for (let i = 0; i < 3; i++) {
     try {
       channel = await client.channels.fetch(channelId);
       if (channel) return channel;
     } catch (err) {
-      console.error(`[logger] Fetch attempt ${i + 1} failed:`, err.message);
       if (i < 2) await new Promise(r => setTimeout(r, 1000));
     }
   }
-
   return null;
 }
 
-// ===== CHECK PERMISSIONS =====
-function checkPermissions(channel, client) {
-  if (!channel || !channel.guild) return true; // DM or unknown
-  try {
-    const permissions = channel.permissionsFor(client.user);
-    if (!permissions) return false;
-    return permissions.has('SendMessages') && permissions.has('ViewChannel');
-  } catch {
-    return true; // Assume ok if can't check
+// ===== TIME CHECK =====
+function isWithinActiveHours(config) {
+  if (!config.timeBased?.enabled) return true;
+  const hours = config.timeBased.activeHours || [0, 24];
+  const now = new Date();
+  const hour = now.getHours();
+  return hour >= hours[0] && hour < hours[1];
+}
+
+// ===== SMART FILTERS =====
+function passesSmartFilters(data, config) {
+  const filters = config.filters || {};
+  if (!filters.messageContainsLink && !filters.messageContainsMention && !filters.messageContainsAttachment) return true;
+
+  const content = (data.fields || []).map(f => f.value).join(' ');
+
+  if (filters.messageContainsLink && !/https?:\/\//.test(content)) return false;
+  if (filters.messageContainsMention && !/<@!?\d+>/.test(content)) return false;
+  if (filters.messageContainsAttachment && !/attachment|file|image|video/i.test(content)) return false;
+
+  return true;
+}
+
+// ===== ROLE-BASED ROUTING =====
+async function getTargetChannelId(client, data, config, type) {
+  // Check role routing
+  if (config.roleRouting?.enabled && data.userId) {
+    try {
+      const guild = client.guilds.cache.first();
+      const member = await guild.members.fetch(data.userId).catch(() => null);
+      if (member) {
+        for (const [roleId, channelId] of Object.entries(config.roleRouting)) {
+          if (roleId === 'enabled') continue;
+          if (member.roles.cache.has(roleId)) return channelId;
+        }
+      }
+    } catch {}
   }
+  return config.channels[type];
 }
 
 // ===== BUILD CONTAINER =====
 function buildContainer(data, config, type, client) {
-  const container = new ContainerBuilder()
-    .setAccentColor(data.color || config.colors?.[type] || 0xFFFFFF)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${data.emoji || '📋'} ${data.title || 'Log Event'}\n` +
-        `**${data.subtitle || 'Log Event'}**`
-      )
-    )
-    .addSeparatorComponents(makeSep());
+  const format = config.format || 'detailed';
 
-  for (const field of data.fields || []) {
-    if (!field.name || !field.value) continue;
+  const container = new ContainerBuilder()
+    .setAccentColor(data.color || config.colors?.[type] || 0xFFFFFF);
+
+  if (format === 'minimal') {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`${data.emoji || '📋'} ${data.title}`)
+    );
+  } else {
     container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `**${field.name}**\n${field.value}`
+        `# ${data.emoji || '📋'} ${data.title}\n` +
+        `**${data.subtitle || 'Log Event'}**`
       )
     );
+  }
+
+  container.addSeparatorComponents(makeSep());
+
+  if (format === 'compact') {
+    const compactText = (data.fields || []).map(f => `**${f.name}:** ${f.value}`).join(' • ');
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(compactText));
+  } else {
+    for (const field of data.fields || []) {
+      if (!field.name || !field.value) continue;
+      container.addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**${field.name}**\n${field.value}`)
+      );
+    }
   }
 
   container.addSeparatorComponents(makeSep());
@@ -118,75 +173,85 @@ function buildContainer(data, config, type, client) {
   return container;
 }
 
-// ===== SEND LOG (with retry + fallback) =====
+// ===== BUILD ACTION ROW =====
+function buildReactionRow(config, logId) {
+  if (!config.reactions?.enabled) return null;
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`log_ignore_${logId}`).setEmoji(config.reactions.emojis?.ignore || '✅').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId(`log_review_${logId}`).setEmoji(config.reactions.emojis?.review || '⚠️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(`log_important_${logId}`).setEmoji(config.reactions.emojis?.important || '⭐').setStyle(ButtonStyle.Primary)
+  );
+  return row;
+}
+
+// ===== SEND LOG =====
 async function sendLogNow(client, type, data) {
   const config = loadConfig();
-  if (!config) {
-    console.error('[logger] Config not loaded');
-    return { success: false, error: 'Config not loaded' };
+  if (!config) return { success: false, error: 'Config not loaded' };
+  if (!config.enabled?.[type]) return { success: false, error: 'Log type disabled' };
+
+  // Smart filters
+  if (!passesSmartFilters(data, config)) {
+    return { success: false, error: 'Filtered out' };
   }
 
-  if (!config.enabled?.[type]) {
-    return { success: false, error: 'Log type disabled' };
+  // Time-based
+  if (!isWithinActiveHours(config)) {
+    return { success: false, error: 'Outside active hours' };
   }
 
-  const channelId = config.channels?.[type];
-  if (!channelId) {
-    return { success: false, error: 'No channel set' };
-  }
+  // Get channel with role routing
+  const channelId = await getTargetChannelId(client, data, config, type);
+  if (!channelId) return { success: false, error: 'No channel set' };
 
   const channel = await getChannel(client, channelId);
-  if (!channel) {
-    console.error(`[logger] Channel not found: ${channelId}`);
-    return { success: false, error: 'Channel not found' };
-  }
-
-  if (!checkPermissions(channel, client)) {
-    console.error(`[logger] No permission to send in: ${channelId}`);
-    return { success: false, error: 'No permission' };
-  }
+  if (!channel) return { success: false, error: 'Channel not found' };
 
   const container = buildContainer(data, config, type, client);
+  const logId = Date.now().toString(36);
+
+  const payload = {
+    components: [container],
+    flags: 1 << 15,
+  };
+
+  // Add reaction buttons
+  const reactionRow = buildReactionRow(config, logId);
+  if (reactionRow) {
+    payload.components.push(reactionRow);
+  }
 
   // Try send with retry
   for (let i = 0; i < 3; i++) {
     try {
-      const msg = await channel.send({
-        components: [container],
-        flags: 1 << 15,
-      });
+      const msg = await channel.send(payload);
       return { success: true, messageId: msg.id };
     } catch (err) {
-      console.error(`[logger] Send attempt ${i + 1} failed:`, err.message);
       if (i < 2) await new Promise(r => setTimeout(r, 1000));
     }
   }
 
-  return { success: false, error: 'All send attempts failed' };
+  return { success: false, error: 'Send failed' };
 }
 
-// ===== QUEUE PROCESSOR =====
+// ===== QUEUE =====
 async function processQueue(client) {
   if (processing) return;
   if (logQueue.length === 0) return;
 
   processing = true;
-
   while (logQueue.length > 0) {
     const job = logQueue.shift();
     try {
       const result = await sendLogNow(job.client, job.type, job.data);
       if (job.resolve) job.resolve(result);
     } catch (err) {
-      console.error('[logger] Queue error:', err.message);
       if (job.resolve) job.resolve({ success: false, error: err.message });
     }
   }
-
   processing = false;
 }
 
-// ===== PUBLIC: sendLog =====
 async function sendLog(client, type, data) {
   return new Promise((resolve) => {
     logQueue.push({ client, type, data, resolve });
@@ -194,7 +259,7 @@ async function sendLog(client, type, data) {
   });
 }
 
-// ===== IGNORE CHECK =====
+// ===== IGNORE =====
 function isIgnored(config, { channelId, roleIds, userId }) {
   if (!config) return false;
   if (channelId && config.ignoredChannels?.includes(channelId)) return true;
@@ -203,24 +268,11 @@ function isIgnored(config, { channelId, roleIds, userId }) {
   return false;
 }
 
-// ===== TEST LOG =====
-async function testLog(client, type) {
-  return await sendLog(client, type, {
-    emoji: '🧪',
-    title: 'Test Log',
-    subtitle: 'Testing log system',
-    fields: [
-      { name: 'Status', value: '✅ Working' },
-      { name: 'Type', value: type },
-      { name: 'Time', value: `<t:${Math.floor(Date.now() / 1000)}:F>` },
-    ],
-  });
-}
-
 module.exports = {
   sendLog,
-  testLog,
   loadConfig,
   saveConfig,
   isIgnored,
+  makeSep,
+  getChannel,
 };
