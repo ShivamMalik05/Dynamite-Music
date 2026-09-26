@@ -10,34 +10,12 @@ const {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  StringSelectMenuBuilder,
 } = require('discord.js');
 const emojis = require('../../emojis/emojis');
 const { sendLog } = require('../../utils/logger');
-const { checkPermission } = require('../../utils/permissions');
-const fs = require('fs');
-const path = require('path');
+const core = require('../../core');
 
-const warningsPath = path.join(__dirname, '..', '..', 'data', 'warnings.json');
-
-function loadWarnings() {
-  if (!fs.existsSync(warningsPath)) return { nextId: 1, warnings: {} };
-  try {
-    const data = JSON.parse(fs.readFileSync(warningsPath, 'utf8'));
-    if (!data.warnings) data.warnings = {};
-    if (!data.nextId) data.nextId = 1;
-    return data;
-  } catch {
-    return { nextId: 1, warnings: {} };
-  }
-}
-
-function saveWarnings(data) {
-  const dir = path.dirname(warningsPath);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(warningsPath, JSON.stringify(data, null, 2));
-}
-
+// ===== SEPARATOR =====
 function makeSep() {
   try {
     const sep = new SeparatorBuilder();
@@ -49,17 +27,9 @@ function makeSep() {
   }
 }
 
-// ===== BUILD MAIN PANEL =====
-async function buildMainPanel(data, page, client, guild, filterUserId = null) {
-  // Collect all warnings
-  const allWarnings = [];
-  for (const [userId, warnings] of Object.entries(data.warnings)) {
-    for (const w of warnings) {
-      if (filterUserId && userId !== filterUserId) continue;
-      allWarnings.push({ ...w, userId });
-    }
-  }
-  allWarnings.sort((a, b) => new Date(b.date) - new Date(a.date));
+// ===== MAIN PANEL =====
+async function buildMainPanel(page, client, guild, filterUserId = null, filterLabel = 'All Warnings') {
+  const allWarnings = core.warnings.getAllWarnings(filterUserId);
 
   const perPage = 10;
   const totalPages = Math.max(1, Math.ceil(allWarnings.length / perPage));
@@ -79,7 +49,7 @@ async function buildMainPanel(data, page, client, guild, filterUserId = null) {
       } catch {}
       listText += `**#${w.id}** — ${userTag}\n`;
       listText += `└ ${emojis.reason || '📝'} ${w.reason}\n`;
-      listText += `└ ${emojis.shield || '🛡️'} by ${w.moderator} ${emojis.dot} <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>\n\n`;
+      listText += `└ ${emojis.shield || '🛡️'} by ${w.moderator} ${emojis.dot || '•'} <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>\n\n`;
     }
   }
 
@@ -88,7 +58,7 @@ async function buildMainPanel(data, page, client, guild, filterUserId = null) {
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
         `# ${emojis.warnings || '📋'} Warning Manager\n` +
-        (filterUserId ? `**Filtered by User**` : `**All Warnings in Server**`)
+        `**${filterLabel}**`
       )
     )
     .addSeparatorComponents(makeSep())
@@ -103,42 +73,32 @@ async function buildMainPanel(data, page, client, guild, filterUserId = null) {
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
 
   const row1 = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`warn_prev_${currentPage}`).setLabel('Previous').setEmoji('⬅️').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === 1),
-    new ButtonBuilder().setCustomId(`warn_next_${currentPage}`).setLabel('Next').setEmoji('➡️').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === totalPages),
-    new ButtonBuilder().setCustomId('warn_remove').setLabel('Remove').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('warn_search').setLabel('Search').setEmoji('🔍').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('warn_stats').setLabel('Stats').setEmoji('📊').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('warn_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId(`wm_prev_${currentPage}`).setLabel('Previous').setEmoji('⬅️').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === 1),
+    new ButtonBuilder().setCustomId(`wm_next_${currentPage}`).setLabel('Next').setEmoji('➡️').setStyle(ButtonStyle.Secondary).setDisabled(currentPage === totalPages),
+    new ButtonBuilder().setCustomId('wm_remove').setLabel('Remove').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('wm_search').setLabel('Search').setEmoji('🔍').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('wm_stats').setLabel('Stats').setEmoji('📊').setStyle(ButtonStyle.Success)
   );
 
-  return [container, row1];
+  const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId('wm_filter').setLabel('Filter User').setEmoji('👤').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('wm_export').setLabel('Export').setEmoji('📤').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('wm_back').setLabel('Back').setEmoji('🏠').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId('wm_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+  );
+
+  return [container, row1, row2];
 }
 
-// ===== BUILD SEARCH PANEL =====
-async function buildSearchPanel(data, searchType, searchValue, client, guild) {
-  const allWarnings = [];
-  for (const [userId, warnings] of Object.entries(data.warnings)) {
-    for (const w of warnings) {
-      allWarnings.push({ ...w, userId });
-    }
-  }
-
-  let filtered = [];
-  if (searchType === 'user') {
-    filtered = allWarnings.filter(w => w.userId === searchValue);
-  } else if (searchType === 'moderator') {
-    filtered = allWarnings.filter(w => w.moderator === searchValue || w.moderatorId === searchValue);
-  } else if (searchType === 'reason') {
-    filtered = allWarnings.filter(w => w.reason.toLowerCase().includes(searchValue.toLowerCase()));
-  }
-
-  filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+// ===== SEARCH PANEL =====
+async function buildSearchPanel(searchValue, client, guild) {
+  const results = core.warnings.search(searchValue, 'reason');
 
   let listText = '';
-  if (filtered.length === 0) {
+  if (results.length === 0) {
     listText = '*No warnings found*';
   } else {
-    for (const w of filtered.slice(0, 10)) {
+    for (const w of results.slice(0, 10)) {
       let userTag = 'Unknown';
       try {
         const m = await guild.members.fetch(w.userId).catch(() => null);
@@ -153,72 +113,58 @@ async function buildSearchPanel(data, searchType, searchValue, client, guild) {
     .setAccentColor(0x5865F2)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `# ${emojis.info} Search Results\n` +
-        `**Type:** ${searchType}\n` +
-        `**Query:** \`${searchValue}\``
+        `# ${emojis.info} Search Results\n**Query:** \`${searchValue}\``
       )
     )
     .addSeparatorComponents(makeSep())
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Found:** \`${filtered.length}\``))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`**Found:** \`${results.length}\``))
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText.slice(0, 3500)))
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('warn_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('warn_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId('wm_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('wm_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
   );
 
   return [container, row];
 }
 
-// ===== BUILD STATS PANEL =====
-async function buildStatsPanel(data, client, guild) {
-  let total = 0, users = 0, mostWarned = null, mostCount = 0;
-  const mods = {};
-  const reasons = {};
+// ===== STATS PANEL =====
+async function buildStatsPanel(client, guild) {
+  const stats = core.warnings.getStats();
 
-  for (const [userId, warnings] of Object.entries(data.warnings)) {
-    if (warnings.length > 0) {
-      total += warnings.length;
-      users++;
-      if (warnings.length > mostCount) { mostCount = warnings.length; mostWarned = userId; }
-      for (const w of warnings) {
-        mods[w.moderator] = (mods[w.moderator] || 0) + 1;
-        reasons[w.reason] = (reasons[w.reason] || 0) + 1;
-      }
-    }
-  }
+  const topMods = Object.entries(stats.moderators).sort((a, b) => b[1] - a[1]).slice(0, 5)
+    .map(([m, c]) => `${emojis.arrow || '➡️'} ${m} — \`${c}\``).join('\n') || '*None*';
 
-  const topMods = Object.entries(mods).sort((a, b) => b[1] - a[1]).slice(0, 5)
-    .map(([m, c]) => `${emojis.arrow} ${m} — \`${c}\``).join('\n') || '*None*';
-
-  const topReasons = Object.entries(reasons).sort((a, b) => b[1] - a[1]).slice(0, 5)
-    .map(([r, c]) => `${emojis.arrow} ${r} — \`${c}\``).join('\n') || '*None*';
+  const topReasons = Object.entries(stats.reasons).sort((a, b) => b[1] - a[1]).slice(0, 5)
+    .map(([r, c]) => `${emojis.arrow || '➡️'} ${r} — \`${c}\``).join('\n') || '*None*';
 
   let mostWarnedText = '*None*';
-  if (mostWarned) {
-    try { const u = await client.users.fetch(mostWarned); mostWarnedText = `${u.tag} — \`${mostCount}\``; }
-    catch { mostWarnedText = `Unknown — \`${mostCount}\``; }
+  if (stats.mostWarned) {
+    try {
+      const u = await client.users.fetch(stats.mostWarned);
+      mostWarnedText = `${u.tag} — \`${stats.mostCount}\``;
+    } catch {
+      mostWarnedText = `Unknown — \`${stats.mostCount}\``;
+    }
   }
 
   const container = new ContainerBuilder()
     .setAccentColor(0xEB459E)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# ${emojis.stats} Warning Stats`)
-    )
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`# ${emojis.stats} Warning Stats`))
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `${emojis.arrow} **Total:** \`${total}\`\n` +
-        `${emojis.arrow} **Users Warned:** \`${users}\`\n` +
-        `${emojis.arrow} **Most Warned:** ${mostWarnedText}`
+        `${emojis.arrow || '➡️'} **Total:** \`${stats.total}\`\n` +
+        `${emojis.arrow || '➡️'} **Users Warned:** \`${stats.users}\`\n` +
+        `${emojis.arrow || '➡️'} **Most Warned:** ${mostWarnedText}`
       )
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`**${emojis.mod} Top Moderators**\n${topMods}`)
+      new TextDisplayBuilder().setContent(`**${emojis.mod || '🛡️'} Top Moderators**\n${topMods}`)
     )
     .addSeparatorComponents(makeSep())
     .addTextDisplayComponents(
@@ -228,8 +174,49 @@ async function buildStatsPanel(data, client, guild) {
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('warn_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary),
-    new ButtonBuilder().setCustomId('warn_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+    new ButtonBuilder().setCustomId('wm_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('wm_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
+  );
+
+  return [container, row];
+}
+
+// ===== FILTER PANEL =====
+async function buildFilterPanel(userId, client, guild) {
+  const user = await client.users.fetch(userId).catch(() => null);
+  if (!user) {
+    const components = await buildMainPanel(1, client, guild);
+    return components;
+  }
+
+  const allWarnings = core.warnings.getUserWarnings(userId);
+
+  let listText = '';
+  if (allWarnings.length === 0) {
+    listText = '*No warnings found*';
+  } else {
+    for (const w of allWarnings.slice(0, 10)) {
+      listText += `**#${w.id}** — ${w.reason}\n`;
+      listText += `└ by ${w.moderator} ${emojis.dot || '•'} <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>\n\n`;
+    }
+  }
+
+  const container = new ContainerBuilder()
+    .setAccentColor(0x57F287)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `# ${emojis.person} Filter: ${user.tag}\n**${allWarnings.length} warning(s)**`
+      )
+    )
+    .addSeparatorComponents(makeSep())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(listText.slice(0, 3500)))
+    .addSeparatorComponents(makeSep())
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`*Powered by Dynamite Music*`));
+
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(`wm_remove_user_${userId}`).setLabel('Remove All').setEmoji('🗑️').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('wm_back').setLabel('Back').setEmoji('⬅️').setStyle(ButtonStyle.Primary),
+    new ButtonBuilder().setCustomId('wm_close').setLabel('Close').setEmoji('❌').setStyle(ButtonStyle.Danger)
   );
 
   return [container, row];
@@ -237,146 +224,136 @@ async function buildStatsPanel(data, client, guild) {
 
 module.exports = {
   name: 'warning',
-  description: 'Warning manager',
+  description: 'Warning manager — view, remove, search, stats',
   category: 'Moderation',
   data: new SlashCommandBuilder()
     .setName('warning')
     .setDescription('Warning manager')
     .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
-    .addSubcommand(sub =>
-      sub.setName('manage')
-        .setDescription('Open warning manager'))
-    .addSubcommand(sub =>
-      sub.setName('list')
-        .setDescription('View user warnings')
-        .addUserOption(opt =>
-          opt.setName('user').setDescription('User').setRequired(true))),
+    .addUserOption(opt =>
+      opt.setName('user').setDescription('Filter by user (optional)').setRequired(false)),
 
   async execute(context) {
     if (!context.isChatInputCommand || !context.isChatInputCommand()) {
       return context.reply('Use /warning (slash command).');
     }
 
-    if (!(await checkPermission(context, 'warning'))) return;
+    if (!(await core.permissions.checkPermission(context, 'warning'))) return;
 
-    const sub = context.options.getSubcommand();
     const client = context.client;
     const guild = context.guild;
-    const data = loadWarnings();
+    const filterUser = context.options.getUser('user');
 
-    if (sub === 'manage') {
-      const components = await buildMainPanel(data, 1, client, guild);
-      return context.reply({ components, flags: 1 << 15 | 1 << 6 });
-    }
+    const components = await buildMainPanel(
+      1, client, guild,
+      filterUser?.id || null,
+      filterUser ? `Filter: ${filterUser.tag}` : 'All Warnings'
+    );
 
-    if (sub === 'list') {
-      const user = context.options.getUser('user');
-      const warnings = data.warnings[user.id] || [];
-
-      if (warnings.length === 0) {
-        return context.reply(`${emojis.info} **${user.tag}** has no warnings.`);
-      }
-
-      const lines = warnings.map(w =>
-        `**#${w.id}** — ${w.reason}\n└ by ${w.moderator} ${emojis.dot} <t:${Math.floor(new Date(w.date).getTime() / 1000)}:R>`
-      );
-
-      const text = `${emojis.warn} **${user.tag}** has **${warnings.length}** warning(s):\n\n${lines.join('\n\n')}`;
-
-      if (text.length > 2000) {
-        return context.reply({
-          content: `${emojis.warning} Too many warnings. Use \`/warnlogs user @${user.username}\``,
-          ephemeral: true,
-        });
-      }
-
-      return context.reply(text);
-    }
+    await context.reply({ components, flags: 1 << 15 | 1 << 6 });
   },
 
   // ===== BUTTON HANDLER =====
   async handleButton(interaction, client) {
     const id = interaction.customId;
-    if (!id.startsWith('warn_')) return false;
+    if (!id.startsWith('wm_')) return false;
 
     const guild = interaction.guild;
-    const data = loadWarnings();
 
     // CLOSE
-    if (id === 'warn_close') {
+    if (id === 'wm_close') {
       try { await interaction.message.delete(); } catch {}
       return true;
     }
 
     // BACK
-    if (id === 'warn_back') {
-      const components = await buildMainPanel(data, 1, client, guild);
+    if (id === 'wm_back') {
+      const components = await buildMainPanel(1, client, guild);
       await interaction.update({ components, flags: 1 << 15 });
       return true;
     }
 
     // PREVIOUS
-    if (id.startsWith('warn_prev_')) {
-      const current = parseInt(id.replace('warn_prev_', ''));
-      const components = await buildMainPanel(data, current - 1, client, guild);
+    if (id.startsWith('wm_prev_')) {
+      const current = parseInt(id.replace('wm_prev_', ''));
+      const components = await buildMainPanel(current - 1, client, guild);
       await interaction.update({ components, flags: 1 << 15 });
       return true;
     }
 
     // NEXT
-    if (id.startsWith('warn_next_')) {
-      const current = parseInt(id.replace('warn_next_', ''));
-      const components = await buildMainPanel(data, current + 1, client, guild);
+    if (id.startsWith('wm_next_')) {
+      const current = parseInt(id.replace('wm_next_', ''));
+      const components = await buildMainPanel(current + 1, client, guild);
       await interaction.update({ components, flags: 1 << 15 });
       return true;
     }
 
     // STATS
-    if (id === 'warn_stats') {
-      const components = await buildStatsPanel(data, client, guild);
+    if (id === 'wm_stats') {
+      const components = await buildStatsPanel(client, guild);
       await interaction.update({ components, flags: 1 << 15 });
       return true;
     }
 
     // SEARCH
-    if (id === 'warn_search') {
-      const modal = new ModalBuilder().setCustomId('warn_modal_search').setTitle('Search Warnings');
+    if (id === 'wm_search') {
+      const modal = new ModalBuilder().setCustomId('wm_modal_search').setTitle('Search Warnings');
       modal.addComponents(
         new ActionRowBuilder().addComponents(
-          new StringSelectMenuBuilder().setCustomId('search_type').setPlaceholder('Search by...').addOptions([
-            { label: 'User', value: 'user' },
-            { label: 'Moderator', value: 'moderator' },
-            { label: 'Reason', value: 'reason' },
-          ])
-        ),
-        new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('search_value').setLabel('Search value').setStyle(TextInputStyle.Short).setRequired(true)
+          new TextInputBuilder().setCustomId('query').setLabel('Reason contains...').setStyle(TextInputStyle.Short).setRequired(true)
         )
       );
-      // Note: StringSelectMenu can't be in Modal. Use 2 separate modals instead.
-      // For now, just ask for reason search
-      const modal2 = new ModalBuilder().setCustomId('warn_modal_search').setTitle('Search Warnings');
-      modal2.addComponents(
+      await interaction.showModal(modal);
+      return true;
+    }
+
+    // FILTER
+    if (id === 'wm_filter') {
+      const modal = new ModalBuilder().setCustomId('wm_modal_filter').setTitle('Filter by User');
+      modal.addComponents(
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('search_value').setLabel('Reason contains (leave empty for user)').setStyle(TextInputStyle.Short).setRequired(false)
+          new TextInputBuilder().setCustomId('user_id').setLabel('User ID').setStyle(TextInputStyle.Short).setRequired(true)
         )
       );
-      await interaction.showModal(modal2);
+      await interaction.showModal(modal);
+      return true;
+    }
+
+    // EXPORT
+    if (id === 'wm_export') {
+      const all = core.warnings.getAllWarnings();
+      const json = JSON.stringify(all, null, 2);
+      if (json.length > 1900) {
+        await interaction.reply({ content: `${emojis.error} Too many warnings to export.`, ephemeral: true });
+      } else {
+        await interaction.reply({ content: `\`\`\`json\n${json}\n\`\`\``, ephemeral: true });
+      }
+      return true;
+    }
+
+    // REMOVE ALL FOR USER (from filter panel)
+    if (id.startsWith('wm_remove_user_')) {
+      const userId = id.replace('wm_remove_user_', '');
+      const result = core.warnings.removeWarnings(userId, { all: true });
+      await interaction.reply({ content: `${emojis.success} Removed **${result.removed.length}** warning(s).`, ephemeral: true });
+      const components = await buildMainPanel(1, client, guild);
+      await interaction.message.edit({ components, flags: 1 << 15 });
       return true;
     }
 
     // REMOVE
-    if (id === 'warn_remove') {
-      const modal = new ModalBuilder().setCustomId('warn_modal_remove').setTitle('Remove Warnings');
+    if (id === 'wm_remove') {
+      const modal = new ModalBuilder().setCustomId('wm_modal_remove').setTitle('Remove Warnings');
       modal.addComponents(
         new ActionRowBuilder().addComponents(
           new TextInputBuilder().setCustomId('type').setLabel('Type: id, all, count, range').setStyle(TextInputStyle.Short).setRequired(true)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('value').setLabel('Value (ID, count, or range)').setStyle(TextInputStyle.Short).setRequired(false)
+          new TextInputBuilder().setCustomId('value').setLabel('Value (ID/count/range)').setStyle(TextInputStyle.Short).setRequired(false)
         ),
         new ActionRowBuilder().addComponents(
-          new TextInputBuilder().setCustomId('user_id').setLabel('User ID (required for count/range)').setStyle(TextInputStyle.Short).setRequired(false)
+          new TextInputBuilder().setCustomId('user_id').setLabel('User ID (for all/count/range)').setStyle(TextInputStyle.Short).setRequired(false)
         )
       );
       await interaction.showModal(modal);
@@ -389,79 +366,58 @@ module.exports = {
   // ===== MODAL HANDLER =====
   async handleModal(interaction, client) {
     const id = interaction.customId;
-    if (!id.startsWith('warn_modal_')) return false;
+    if (!id.startsWith('wm_modal_')) return false;
 
     const guild = interaction.guild;
-    const data = loadWarnings();
     const moderatorTag = interaction.user.tag;
     const moderatorId = interaction.user.id;
 
-    // SEARCH MODAL
-    if (id === 'warn_modal_search') {
-      const value = interaction.fields.getTextInputValue('search_value') || '';
-      const components = await buildSearchPanel(data, 'reason', value, client, guild);
+    // SEARCH
+    if (id === 'wm_modal_search') {
+      const query = interaction.fields.getTextInputValue('query');
+      const components = await buildSearchPanel(query, client, guild);
       await interaction.reply({ components, flags: 1 << 15 | 1 << 6 });
       return true;
     }
 
-    // REMOVE MODAL
-    if (id === 'warn_modal_remove') {
+    // FILTER
+    if (id === 'wm_modal_filter') {
+      const userId = interaction.fields.getTextInputValue('user_id');
+      const components = await buildFilterPanel(userId, client, guild);
+      await interaction.reply({ components, flags: 1 << 15 | 1 << 6 });
+      return true;
+    }
+
+    // REMOVE
+    if (id === 'wm_modal_remove') {
       const type = interaction.fields.getTextInputValue('type').toLowerCase();
       const value = interaction.fields.getTextInputValue('value');
       const userId = interaction.fields.getTextInputValue('user_id');
 
-      let removed = [];
-      let removedIds = [];
+      let result;
 
-      if (type === 'all') {
-        if (!userId) return interaction.reply({ content: `${emojis.error} User ID required for "all".`, ephemeral: true });
-        const warnings = data.warnings[userId] || [];
-        if (warnings.length === 0) return interaction.reply({ content: `${emojis.error} No warnings found.`, ephemeral: true });
-        removed = [...warnings];
-        removedIds = warnings.map(w => `#${w.id}`);
-        data.warnings[userId] = [];
-      } else if (type === 'id') {
+      if (type === 'id') {
         const warningId = parseInt(value);
         if (isNaN(warningId)) return interaction.reply({ content: `${emojis.error} Invalid ID.`, ephemeral: true });
-        for (const [uid, warnings] of Object.entries(data.warnings)) {
-          const idx = warnings.findIndex(w => w.id === warningId);
-          if (idx !== -1) {
-            removed = [warnings[idx]];
-            removedIds = [`#${warningId}`];
-            warnings.splice(idx, 1);
-            break;
-          }
-        }
-        if (removed.length === 0) return interaction.reply({ content: `${emojis.error} Warning #${value} not found.`, ephemeral: true });
-      } else if (type === 'count') {
-        if (!userId) return interaction.reply({ content: `${emojis.error} User ID required for "count".`, ephemeral: true });
-        const count = parseInt(value);
-        const warnings = data.warnings[userId] || [];
-        if (warnings.length === 0) return interaction.reply({ content: `${emojis.error} No warnings.`, ephemeral: true });
-        const toRemove = warnings.slice(-count);
-        removed = toRemove;
-        removedIds = toRemove.map(w => `#${w.id}`);
-        data.warnings[userId] = warnings.filter(w => !toRemove.includes(w));
-      } else if (type === 'range') {
-        if (!userId) return interaction.reply({ content: `${emojis.error} User ID required for "range".`, ephemeral: true });
-        const match = value.match(/^(\d+)-(\d+)$/);
-        if (!match) return interaction.reply({ content: `${emojis.error} Range format: 1-5`, ephemeral: true });
-        const start = parseInt(match[1]);
-        const end = parseInt(match[2]);
-        const warnings = data.warnings[userId] || [];
-        const toRemove = warnings.slice(start - 1, end);
-        removed = toRemove;
-        removedIds = toRemove.map(w => `#${w.id}`);
-        data.warnings[userId] = warnings.filter(w => !toRemove.includes(w));
+        const r = core.warnings.removeById(warningId);
+        if (r.error) return interaction.reply({ content: `${emojis.error} ${r.error}`, ephemeral: true });
+        result = { removed: [r.removed], removedIds: [`#${warningId}`] };
       } else {
-        return interaction.reply({ content: `${emojis.error} Type: id, all, count, range`, ephemeral: true });
+        if (!userId) return interaction.reply({ content: `${emojis.error} User ID required.`, ephemeral: true });
+
+        const options = {};
+        if (type === 'all') options.all = true;
+        else if (type === 'count') options.count = parseInt(value);
+        else if (type === 'range') options.range = value;
+        else return interaction.reply({ content: `${emojis.error} Type: id, all, count, range`, ephemeral: true });
+
+        result = core.warnings.removeWarnings(userId, options);
+        if (result.error) return interaction.reply({ content: `${emojis.error} ${result.error}`, ephemeral: true });
       }
 
-      saveWarnings(data);
-
       await interaction.reply({
-        content: `${emojis.success} Removed **${removed.length}** warning(s): ${removedIds.join(', ')}`,
-        ephemeral: true
+        content: `${emojis.success} Removed **${result.removed.length}** warning(s): ${result.removedIds.join(', ')}`,
+        ephemeral: true,
       });
 
       await sendLog(client, 'warn', {
@@ -470,8 +426,8 @@ module.exports = {
         subtitle: 'Warnings were removed',
         fields: [
           { name: '🛡️ Moderator', value: `${moderatorTag} (${moderatorId})` },
-          { name: '🗑️ Removed', value: `${removed.length}` },
-          { name: '🆔 IDs', value: removedIds.join(', ').slice(0, 1000) },
+          { name: '🗑️ Removed', value: `${result.removed.length}` },
+          { name: '🆔 IDs', value: result.removedIds.join(', ').slice(0, 1000) },
         ],
       });
       return true;
