@@ -40,7 +40,6 @@ module.exports = {
       return context.reply('Use /owner (slash command).');
     }
 
-    // Only owners can use this command
     if (!isOwner(context.user.id)) {
       return context.reply({
         content: `${emojis.error} Only bot owners can use this command.`,
@@ -90,7 +89,6 @@ module.exports = {
     if (sub === 'remove') {
       const user = context.options.getUser('user');
 
-      // Cannot remove yourself if you're the last owner
       const owners = getAllOwners();
       if (owners.length === 1 && owners[0] === user.id) {
         return context.reply({
@@ -114,7 +112,7 @@ module.exports = {
           name: 'Bot Owner Removed',
           iconURL: context.client.user.displayAvatarURL({ dynamic: true, size: 128 })
         })
-        .setTitle(`${emojis.cross} Owner Removed`)
+        .setTitle(`${emojis.cancel} Owner Removed`)
         .setDescription(`**${user.tag}** is no longer a bot owner.`)
         .setThumbnail(user.displayAvatarURL({ dynamic: true, size: 256 }))
         .addFields(
@@ -138,9 +136,9 @@ module.exports = {
       for (const id of owners) {
         try {
           const user = await context.client.users.fetch(id);
-          list.push(`• **${user.tag}** — \`${id}\``);
+          list.push(`${emojis.dot} **${user.tag}** — \`${id}\``);
         } catch {
-          list.push(`• Unknown User — \`${id}\``);
+          list.push(`${emojis.dot} Unknown User — \`${id}\``);
         }
       }
 
